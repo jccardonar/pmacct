@@ -32,6 +32,9 @@ from file_modules.file_producer import FileExporter
 from lib_pmgrpcd import PMGRPCDLOG
 
 def configure(config=None):
+    '''
+    Setup all exporters
+    '''
     if config is None:
         config = lib_pmgrpcd.OPTIONS
 
@@ -41,9 +44,17 @@ def configure(config=None):
         zmq_exporter = ZmqExporter()
         export_pmgrpcd.EXPORTERS["zmq"] = zmq_exporter
     if config.kafkaavro:
+        if config.bsservers is None:
+            raise Exception(f"Kafka servers  must be valid, got {config.bsservers}")
+        if config.topic is None:
+            raise Exception(f"Kafka topic  must be valid, got {config.topic}")
         kafka_avro_exporter = KafkaAvroExporter()
         export_pmgrpcd.EXPORTERS["kafkaavro"] = kafka_avro_exporter
     if config.kafkasimple:
+        if config.bsservers is None:
+            raise Exception(f"Kafka servers  must be valid, got {config.bsservers}")
+        if config.topic is None:
+            raise Exception(f"Kafka topic  must be valid, got {config.topic}")
         exporter = KafkaExporter(config.bsservers, config.topic)
         export_pmgrpcd.EXPORTERS["kafka"] = exporter
     if config.file_exporter_file is not None:

@@ -34,6 +34,10 @@ FOLDER_PICKLE = "/tmp"
 
 class KafkaExporter(Exporter):
     def __init__(self, servers, topic):
+        if not servers:
+            raise Exception(f"Kafka servers must be valid, got {servers}")
+        if not topic:
+            raise Exception(f"Kafka topic  must be valid, got {topic}")
         self.producer = Producer({"bootstrap.servers": servers})
         self.topic = topic
         self.encoding_paths_lists = {}

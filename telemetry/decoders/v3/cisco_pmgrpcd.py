@@ -31,10 +31,10 @@ import lib_pmgrpcd
 import time
 from export_pmgrpcd import FinalizeTelemetryData
 import base64
+from debug import DEBUG_LOCK
 
 if lib_pmgrpcd.OPTIONS.cenctype == 'gpbkv':
     import cisco_telemetry_pb2
-
 
 
 class gRPCMdtDialoutServicer(cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer):
@@ -42,46 +42,41 @@ class gRPCMdtDialoutServicer(cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer)
         PMGRPCDLOG.info("Cisco: Initializing gRPCMdtDialoutServicer()")
 
     def MdtDialout(self, msg_iterator, context):
-        try:
-            grpcPeer = {}
-            grpcPeerStr = context.peer()
-            (
-                grpcPeer["telemetry_proto"],
-                grpcPeer["telemetry_node"],
-                grpcPeer["telemetry_node_port"],
-            ) = grpcPeerStr.split(":")
-            grpcPeer["ne_vendor"] = "Cisco"
-            PMGRPCDLOG.debug("Cisco MdtDialout Message: %s" % grpcPeer["telemetry_node"])
-    
-            # cisco_processing(grpcPeer, message, context)
-            metadata = dict(context.invocation_metadata())
-            grpcPeer["user-agent"] = metadata["user-agent"]
-            # Example of grpcPeerStr -> 'ipv4:10.215.133.23:57775'
-            grpcPeer["grpc_processing"] = "cisco_grpc_dialout_pb2_grpc"
-            grpcPeer["grpc_ulayer"] = "GPB Telemetry"
-            jsonTelemetryNode = json.dumps(grpcPeer, indent=2, sort_keys=True)
-    
-            PMGRPCDLOG.debug("Cisco connection info: %s" % jsonTelemetryNode)
-    
-            for new_msg in msg_iterator:
-                PMGRPCDLOG.debug("Cisco new_msg iteration message")
-    
-                # filter msgs that do not match the IP option if enabled.
-                if lib_pmgrpcd.OPTIONS.ip:
-                    if grpcPeer["telemetry_node"] != lib_pmgrpcd.OPTIONS.ip:
-                        continue
-                    PMGRPCDLOG.debug(
-                        "Cisco: ip filter matched with ip %s" % (lib_pmgrpcd.OPTIONS.ip)
-                    )
-    
-                try:
-                    cisco_processing(grpcPeer, new_msg)
-                except Exception as e:
-                    PMGRPCDLOG.debug("Error processing Cisco packet, error is %s", e)
+        grpcPeer = {}
+        grpcPeerStr = context.peer()
+        (
+            grpcPeer["telemetry_proto"],
+            grpcPeer["telemetry_node"],
+            grpcPeer["telemetry_node_port"],
+        ) = grpcPeerStr.split(":")
+        grpcPeer["ne_vendor"] = "Cisco"
+        PMGRPCDLOG.debug("Cisco MdtDialout Message: %s" % grpcPeer["telemetry_node"])
+
+        # cisco_processing(grpcPeer, message, context)
+        metadata = dict(context.invocation_metadata())
+        grpcPeer["user-agent"] = metadata["user-agent"]
+        # Example of grpcPeerStr -> 'ipv4:10.215.133.23:57775'
+        grpcPeer["grpc_processing"] = "cisco_grpc_dialout_pb2_grpc"
+        grpcPeer["grpc_ulayer"] = "GPB Telemetry"
+        jsonTelemetryNode = json.dumps(grpcPeer, indent=2, sort_keys=True)
+
+        PMGRPCDLOG.debug("Cisco connection info: %s" % jsonTelemetryNode)
+        for new_msg in msg_iterator:
+            PMGRPCDLOG.debug("Cisco new_msg iteration message")
+
+            # filter msgs that do not match the IP option if enabled.
+            if lib_pmgrpcd.OPTIONS.ip:
+                if grpcPeer["telemetry_node"] != lib_pmgrpcd.OPTIONS.ip:
                     continue
-        except Exception as e:
-            print(type(e))
-            print(e.args)
+                PMGRPCDLOG.debug(
+                    "Cisco: ip filter matched with ip %s" % (lib_pmgrpcd.OPTIONS.ip)
+                )
+
+            try:
+                cisco_processing(grpcPeer, new_msg)
+            except Exception as e:
+                PMGRPCDLOG.debug("Error processing Cisco packet, error is %s", e)
+                continue
         return
         yield
 
@@ -103,6 +98,13 @@ def cisco_processing(grpcPeer, new_msg):
     encoding_type = None
     PMGRPCDLOG.debug("Cisco: Received GRPC-Data")
     PMGRPCDLOG.debug(new_msg.data)
+
+    # dump the raw data
+    if lib_pmgrpcd.OPTIONS.rawdatadumpfile:
+        PMGRPCDLOG.debug("Write rawdatadumpfile: %s" % (lib_pmgrpcd.OPTIONS.rawdatafile))
+        with open(lib_pmgrpcd.OPTIONS.rawdatadumpfile, "a") as rawdatafile:
+            rawdatafile.write(base64.b64encode(new_msg.data).decode())
+            rawdatafile.write("\n")
 
     # Find the encoding of the packet
     try:
@@ -190,14 +192,6 @@ def cisco_processing(grpcPeer, new_msg):
 
         # allkeys = parse_dict(listelem, ret='', level=0)
         # PMGRPCDLOG.info("Cisco: %s: %s" % (proto, allkeys))
-
-
-        # dump the raw data
-        if lib_pmgrpcd.OPTIONS.rawdatadumpfile:
-            PMGRPCDLOG.debug("Write rawdatadumpfile: %s" % (lib_pmgrpcd.OPTIONS.rawdatadumpfile))
-            with open(lib_pmgrpcd.OPTIONS.rawdatadumpfile, "a") as rawdatadumpfile:
-                 rawdatadumpfile.write(json.dumps(message_dict, indent=2, sort_keys=True))
-                 rawdatadumpfile.write("\n")
 
         try:
             returned = FinalizeTelemetryData(message_dict)

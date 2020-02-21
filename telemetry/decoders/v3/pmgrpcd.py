@@ -28,6 +28,8 @@ import configparser
 import os
 from datetime import datetime
 import sys
+from typing import Dict
+from distutils.util import strtobool 
 
 # TODO we'll move the next into more appropiate places
 from lib_pmgrpcd import (
@@ -68,36 +70,107 @@ CONFIGFILE = str(DEFAULT_CONFIGFILE)
 # We are simulating this here using the next function:
 # Inspired by https://stackoverflow.com/questions/10551117/setting-options-from-environment-variables-when-using-argparse
 class OptionParserEnv(OptionParser):
+    '''
+    Loads a configuration. It includes the code to load a value by using (in
+    order of preference):
+
+        CMD argument, Environment variable, dictionary (probably obtained
+        through a configuration file)
+
+    The configuration file is actually passed as a dictionary.
+    We cheat a bit and if config or environment exists, we set it on the default of the option.
+    We need dest to be clearly defined in the variable to use the dict.
+    '''
+    config: Dict
+
+    def __init__(self, *arg, config=None, **kargs):
+        '''
+        Config is a simple dict, which we will take from a config file, that has a value for 
+        paramater.
+        '''
+        if config is None:
+            config = {}
+        self.config = config
+        super().__init__(*arg, **kargs)
+
+
     def add_option(self, *arg, **kargs):
         envvar = kargs.get("env_name", None)
+
         try:
             del kargs["env_name"]
         except:
             pass
-        can_be_none = kargs.get("can_be_none", False)
+
+        required = kargs.get("required", False)
         try:
-            del kargs["can_be_none"]
+            del kargs["required"]
         except:
             pass
 
+        new_help = kargs.get("help", "")
+
+        dest = kargs.get("dest", None)
+        if dest is not None:
+            new_help = new_help + f" [Configkey {dest}]"
+
+        code_default = kargs.get("default", None)
+        if code_default is not None:
+            new_help = new_help + f" [Default {code_default}]"
+        else:
+            if required:
+                new_help = new_help + f" [Mandatory]"
+
+        if dest is not None and dest in self.config:
+            PMGRPCDLOG.debug("Getting data from %s from the env variable %s", arg[0], envvar)
+            kargs["default"] = self.config[dest]
+
         if envvar is not None:
-            new_help = kargs.get("help", "")
-            new_help = new_help + " [Env variable {}]".format(envvar)
+            new_help = new_help + " [Env {}]".format(envvar)
             kargs["help"] = new_help
             # Modify the default to be the one ine the env_name
             if envvar in os.environ:
                 PMGRPCDLOG.debug("Getting data from %s from the env variable %s", arg[0], envvar)
-                kargs["default"] = os.environ[envvar] 
-            if not can_be_none and "default" in kargs and kargs["default"] is None:
-                raise Exception("Parameter with env %s is None", envvar)
-        super().add_option(*arg, **kargs)
+                kargs["default"] = os.environ[envvar]
+
+        kargs["help"] = new_help
+
+        # We only do this if action is not store
+        action = kargs.get("action", "")
+        if action == "store_true":
+            if "default" in kargs and not isinstance(kargs["default"], bool):
+                kargs["default"] = bool(strtobool(kargs["default"]))
+            if "default" not in kargs:
+                kargs["default"] = False
+
+        option = super().add_option(*arg, **kargs)
+        option.required = required
+
+        return option
+
+    def missing_required(self, parsed_values):
+        missing_values = set()
+        for option in self.option_list:
+            if not option.required:
+                continue
+            dest = option.dest
+            value = None
+            try:
+                value = getattr(parsed_values, dest)
+            except:
+                pass
+            if value is None:
+                missing_values.add(dest)
+        return missing_values
+
+            
 
 def main():
     global CONFIGFILE
     usage_str = "%prog [options]"
     version_str = "%prog " + SCRIPTVERSION
 
-    # We go over arguments very simply and obtaining the config file, if this one is available.
+    # We go over the cmd arguments, very simply, to obtain the config file, if available.
     config_file_flag = "-c"
     extra_argv = sys.argv[1:]
     config_file_args = None
@@ -114,6 +187,8 @@ def main():
 
     # Load config.  And make sure other files exists.
     config = configparser.ConfigParser()
+    #Do not remove lower https://stackoverflow.com/questions/19359556/configparser-reads-capital-keys-and-make-them-lower-case
+    config.optionxform = str
     if os.path.isfile(CONFIGFILE):
         config.read(CONFIGFILE)
         if "PMGRPCD" not in config.sections():
@@ -125,7 +200,7 @@ def main():
 
 
     # Parse arguments. Default must be a named argument!
-    parser = OptionParserEnv(usage=usage_str, version=version_str)
+    parser = OptionParserEnv(config=dict(config["PMGRPCD"]), usage=usage_str, version=version_str)
     # the next one is not really used, but important to avoid errors.
     parser.add_option(
         config_file_flag,
@@ -151,81 +226,82 @@ def main():
         "-T",
         "--topic",
         env_name = "PM_TOPIC",
-        default=config.get("PMGRPCD", "topic", fallback=None),
         dest="topic",
-        help="the json data are serialized to this topic",
+        help="The json data are serialized to this topic in kafka",
     )
+
     parser.add_option(
         "-B",
         "--bsservers",
-        default=config.get("PMGRPCD", "bsservers", fallback=None),
         env_name = "BSSERVERS",
         dest="bsservers",
         help="bootstrap servers url with port to reach kafka",
     )
+
     parser.add_option(
         "-S",
         "--secproto",
-        default=config.get("PMGRPCD", "secproto", fallback="ssl"),
+        default="ssl",
         dest="secproto",
-        help="security protocol (is normaly ssl)",
+        help="security protocol (Normaly ssl)",
     )
+
     parser.add_option(
         "-O",
         "--sslcertloc",
         env_name = "SSLCERTLOC",
-        default=config.get("PMGRPCD", "sslcertloc", fallback=None),
         dest="sslcertloc",
         help="path/file to ssl certification location",
     )
+
     parser.add_option(
         "-K",
         "--sslkeyloc",
         env_name = "SSLKEYLOC",
-        default=config.get("PMGRPCD", "sslkeyloc", fallback=None),
         dest="sslkeyloc",
         help="path/file to ssl key location",
     )
+
     parser.add_option(
         "-U",
         "--urlscreg",
         env_name="URLSCREG",
-        default=config.get("PMGRPCD", "urlscreg", fallback=None),
         dest="urlscreg",
         help="the url to the schema-registry",
     )
+
     parser.add_option(
         "-L",
         "--calocation",
         env_name="CALOCATION",
-        default=config.get("PMGRPCD", "calocation", fallback=None),
         dest="calocation",
         help="the ca_location used to connect to schema-registry",
     )
+
     parser.add_option(
         "-G",
         "--gpbmapfile",
         env_name="GPBMAPFILE",
-        default=config.get("PMGRPCD", "gpbmapfile", fallback=None),
         dest="gpbmapfile",
         help="change path/name of gpbmapfile [default: %default]",
     )
+
     parser.add_option(
         "-M",
         "--avscmapfile",
         env_name="AVSCMALFILE",
-        default=config.get("PMGRPCD", "avscmapfile", fallback=None),
         dest="avscmapfile",
         help="path/name to the avscmapfile",
     )
+
     parser.add_option(
         "-m",
         "--mitigation",
         action="store_true",
-        default=config.getboolean("PMGRPCD", "mitigation"),
         dest="mitigation",
         help="enable plugin mitigation mod_result_dict from python module mitigation.py",
     )
+
     parser.add_option(
         "-d",
         "--debug",
@@ -234,75 +310,75 @@ def main():
         dest="debug",
         help="enable debug messages on the logfile",
     )
+
     parser.add_option(
         "-l",
         "--PMGRPCDLOGfile",
-        default=config.get("PMGRPCD", "PMGRPCDLOGfile"),
         dest="PMGRPCDLOGfile",
-        help="PMGRPCDLOGfile the logfile on the collector face with path/name [default: %default]",
+        required=True,
+        help="PMGRPCDLOGfile the logfile on the collector face with path/name",
     )
+
     parser.add_option(
         "-a",
         "--serializelogfile",
-        default=config.get("PMGRPCD", "serializelogfile"),
         dest="serializelogfile",
-        help="serializelogfile with path/name for kafka avro and zmq messages [default: %default]",
+        help="serializelogfile with path/name for kafka avro and zmq messages",
     )
+
     parser.add_option(
         "-I",
         "--ipport",
         action="store",
         type="string",
-        default=config.get("PMGRPCD", "ipport"),
         dest="ipport",
-        help="change the ipport the daemon is listen on [default: %default]",
+        help="change the ipport the daemon is listen on",
     )
+
     parser.add_option(
         "-w",
         "--workers",
         action="store",
         type="int",
-        default=config.get("PMGRPCD", "workers"),
         dest="workers",
-        help="change the nr of paralell working processes [default: %default]",
+        help="change the nr of paralell working processes",
     )
+
     parser.add_option(
         "-C",
         "--cisco",
         action="store_true",
-        default=config.getboolean("PMGRPCD", "cisco"),
         dest="cisco",
-        help="enable the grpc messages comming from Cisco [default: %default]",
+        help="enable the grpc messages comming from Cisco",
     )
+
     parser.add_option(
         "-H",
         "--huawei",
         action="store_true",
-        default=config.getboolean("PMGRPCD", "huawei"),
         dest="huawei",
-        help="enable the grpc messages comming from Huawei [default: %default]",
+        help="enable the grpc messages comming from Huawei",
     )
+
     parser.add_option(
         "-t",
         "--cenctype",
-        action="store",
         type="string",
-        default=config.get("PMGRPCD", "cenctype"),
         dest="cenctype",
-        help="cenctype is the type of encoding for cisco. This is because some protofiles are incompatible. With cenctype=gpbkv only cisco is enabled. The encoding type can be json, gpbcomp, gpbkv [default: %default]",
+        help="cenctype is the type of encoding for cisco. This is because some protofiles are incompatible. With cenctype=gpbkv only cisco is enabled. The encoding type can be json, gpbcomp, gpbkv",
     )
+
     parser.add_option(
         "-e",
         "--example",
         action="store_true",
-        default=config.getboolean("PMGRPCD", "example"),
         dest="example",
         help="Enable writing Example Json-Data-Files [default: %default]",
     )
+
     parser.add_option(
         "-E",
         "--examplepath",
-        default=config.get("PMGRPCD", "examplepath"),
         dest="examplepath",
         help="dump a json example of each proto/path to this examplepath",
     )
@@ -312,47 +388,49 @@ def main():
         dest="jsondatadumpfile",
         help="writing the output to the jsondatadumpfile path/name",
     )
+
     parser.add_option(
         "-r",
         "--rawdatadumpfile",
-        default=config.get("PMGRPCD", "rawdatadumpfile", fallback=None),
         dest="rawdatadumpfile",
         help="writing the raw data from the routers to the rowdatafile path/name",
     )
+
     parser.add_option(
         "-z",
         "--zmq",
         action="store_true",
-        default=config.getboolean("PMGRPCD", "zmq"),
         dest="zmq",
-        help="enable forwarding to ZMQ [default: %default]",
+        help="enable forwarding to ZMQ",
     )
+
     parser.add_option(
         "-p",
         "--zmqipport",
-        default=config.get("PMGRPCD", "zmqipport"),
         dest="zmqipport",
-        help="define proto://ip:port of zmq socket bind [default: %default]",
+        help="define proto://ip:port of zmq socket bind",
     )
+
     parser.add_option(
         "-k",
         "--kafkaavro",
         action="store_true",
-        default=config.getboolean("PMGRPCD", "kafkaavro"),
         dest="kafkaavro",
-        help="enable forwarding to Kafka kafkaavro (with schema-registry) [default: %default]",
+        help="enable forwarding to Kafka kafkaavro (with schema-registry)",
     )
+
     parser.add_option(
         "-o",
         "--onlyopenconfig",
         action="store_true",
-        default=config.getboolean("PMGRPCD", "onlyopenconfig"),
         dest="onlyopenconfig",
-        help="only accept pakets of openconfig",
+        help="only accept packets of openconfig",
     )
+
     parser.add_option(
         "-i", "--ip", dest="ip", help="only accept pakets of this single ip"
     )
+
     parser.add_option(
         "-A",
         "--avscid",
@@ -371,6 +449,7 @@ def main():
         dest="rawdatafile",
         help="this is to process manually (via mitigation) process a rawdatafile with a single rawrecord (for development)",
     )
+
     parser.add_option(
         "-N",
         "--console",
@@ -378,32 +457,34 @@ def main():
         dest="console",
         help="this is to display all log-messages also on console (for development)",
     )
+
     parser.add_option(
         "-v", action="store_true", dest="version", help="print version of this script"
     )
+
     parser.add_option(
         "-s",
         "--kafkasimple",
-        default=config.getboolean("PMGRPCD", "kafkasimple", fallback=False),
         dest="kafkasimple",
         help="Boolean if kafkasimple should be enabled.",
     )
 
     parser.add_option(
         "--file_exporter_file",
-        default=config.get("PMGRPCD", "file_exporter_file", fallback=None),
         dest="file_exporter_file",
         help="Name of file for file exporter.",
     )
 
     parser.add_option(
         "--file_importer_file",
-        default=config.get("PMGRPCD", "file_importer_file", fallback=None),
         dest="file_importer_file",
         help="Name of the file to import. If set, we will ignore the rest of the importers.",
     )
 
     (lib_pmgrpcd.OPTIONS, args) = parser.parse_args()
+    missing_required = parser.missing_required(lib_pmgrpcd.OPTIONS)
+    if missing_required:
+        raise Exception(f"Missing values: {missing_required}")
 
     init_pmgrpcdlog()
     init_serializelog()
