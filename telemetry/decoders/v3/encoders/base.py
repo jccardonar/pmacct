@@ -227,6 +227,20 @@ class InternalMetric(BaseEncoding):
         newmetric = InternalMetric(new_data)
         yield from newmetric.get_extra_keys()
 
+    def flatten(self, flatten_config=None):
+        '''
+        extra_keys -> split on extra keys
+        lists_to_strings -> set of lists that should be turned into strings.
+        flatten_lists -> sends elements of lists into itw own metric
+        flatten_keys
+        flatten_hierarchies -> remove hierrachies
+        '''
+        if flatten_data is None:
+            flatten_data = {}
+
+
+
+
 
 
 class JsonTextMetric(BaseEncoding):
