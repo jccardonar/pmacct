@@ -5,3 +5,4 @@ avro-python3
 requests
 confluent-kafka[avro]
 pytest
+pygtrie

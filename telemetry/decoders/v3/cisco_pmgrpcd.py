@@ -42,6 +42,8 @@ class gRPCMdtDialoutServicer(cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer)
         PMGRPCDLOG.info("Cisco: Initializing gRPCMdtDialoutServicer()")
 
     def MdtDialout(self, msg_iterator, context):
+        breakpoint()
+        breakpoint() if DEBUG_LOCK.acquire() else None
         grpcPeer = {}
         grpcPeerStr = context.peer()
         (

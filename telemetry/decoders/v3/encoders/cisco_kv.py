@@ -52,46 +52,82 @@ Many TSDBs or storing systems do not support hierarchical data, but simple metri
 There is a bit of a caveat on the hierrachical metric. Some models are missing keys in the deeper hierarchies. This happens, for instance, in the QoS model of cisco. This code accepts "manual" definitions of keys in the structure. When a key in the middle of the structure is found, the higher hierarchies are ignored, we flatten the structure from there, but we do append the keys from the lower ones.
 
 Another general operation is modifying the name of the fields (mostly AFTER the changes due to hierrachy).
+
+We dont do joins on difffernet metrics.
+But we do split (for later joints to solve them).
+
+Internala packerts are just a dict (values can be complex puytho nobjects). Normally it would be content + metaata. An operation operates on the packet, but normally it would onl ydo it on content, or content + keys.
+
+Outputs: kafka, files, console, zeromq (simple).
+For kafka, we try to provide some control in how to select the topic of a value using metadata.
+At atny point, we have metadata + payload. Metradata includes device, timestamp, path.
+
+We do provide some fucntions for encoding conversion and data changes.
+
+We can convert from  proto to json.
+For kv (the more complex of all), we have our own SIMPLE json converter (not self described but proper). Keys and content are alwyas present. Keys are key/value but since names can be repeated, they become a tuple.
+
+For turn json into dicts, and provide some tools for modification:
+
+    Mitigations functsion: you just import your own function
+    Key addition: you add your own keys.
+    Name changes
+    Filter (do not send more than over this path), do not include this type of data,
+
+    Now, we do count with a flatten of json (it is actualy of s dict of key)
+    If there is a list, we split on every element using the same keys.
+    for mere containers, we bring them down using the name1_name2, or if given, we ignore the first part (careful with name collision).
+    For name collision, we complain and add a _number. We complain using metrics.
+
+    We allow to just leave numeric values here.
+
+We ignore the timestamp of deeper hierarchies in ciscokv. 
+
+We can export raw (together  with some metadata)
+We can export in json (how to obtain it depends on each encoding)
+We can export in json compress (which is just the json but compressed after)
+We can try to flatten data
 '''
 
+from .base import BaseEncoding, BaseEncodingException, InternalMetric
+import sys
+sys.path.append("..")
+from cisco_pmgrpcd import process_cisco_kv
 
 
-class CiscoKVFlatten():
-    def __init__(self, names_data=None, extra_keys=None):
+class CiscoKVFlatten(BaseEncoding):
+    p_key = "encodingPath"
+
+    @classmethod
+    def build_from_grpc_msg(cls, msg, *args, **kargs):
+        data = process_cisco_kv(msg)
+        if cls.content_key not in data:
+            data[cls.content_key] = {}
+            if "dataGpbkv" in data and data["dataGpbkv"]:
+                data[cls.content_key] = data["dataGpbkv"]
+            data.pop("dataGpbkv", None)
+        return cls(data, *args, **kargs)
+
+    def __init__(self, data, names_data=None, extra_keys=None):
         if names_data is None:
             names_data = {}
         if extra_keys is None:
             extra_keys = {}
         self.names_data = names_data
         self.extra_keys = extra_keys
+        return super().__init__(data)
 
 
-    def convert_grpc_to_dict(self, fields):
-        keys = None
-        content = None
-        for field in fields:
-            if field.get("name", "") == "keys":
-                keys = field
-            elif field.get("name", "") == "content":
-                content = field
-        if keys is None:
-            raise Exception("No keys in field {}".format(fields))
-        if content is None:
-            raise Exception("No content in field {}".format(fields))
-        metric_keys = {}
-
-        # flatten keys
-        for n, key in enumerate(keys["fields"]):
-            key, value = self.simplify_cisco_field(key)
-            self.add_to_flatten(metric_keys, key, value)
-
-        flatten_content = self.convert_grpc_to_dict_content(content)
-        return metric_keys, flatten_content
+    def get_internal(self):
+        for sample in self.content:
+            keys, content = self.convert_ciscokv_to_dict(sample)
+            data = self.data.copy()
+            data[self.content_key] = content
+            data[self.keys_key] = keys
+            yield  InternalMetric(data)
 
     def add_to_flatten(self, flatten_content, key, value):
         if key in flatten_content:
-            if key == "cac-state":
-                df
             current_state = flatten_content[key]
             if isinstance(current_state, list):
                 current_state.append(value)
@@ -101,21 +137,50 @@ class CiscoKVFlatten():
             return
         flatten_content[key] = value
 
-
-
-
-    def convert_grpc_to_dict_content(self, content_f):
+    def convert_telemetryfield_to_dict(self, telemetry_field):
+        """
+        A telemetryfield is a msg, that is, a dict.
+        """
         flatten_content = {}
-        for field in content_f["fields"]:
+        for field in telemetry_field["fields"]:
             if "fields" in field and field["fields"]:
                 name = field.get("name", None)
                 if name is None:
                     name = "Unknown"
-                value = self.convert_grpc_to_dict_content(field)
+                value = self.convert_telemetryfield_to_dict(field)
             else:
                 name, value = self.simplify_cisco_field(field)
             self.add_to_flatten(flatten_content, name, value)
         return flatten_content
+
+    def convert_ciscokv_to_dict(self, fields):
+        keys_content = self.convert_telemetryfield_to_dict(fields)
+        keys = keys_content.get("keys", [])
+        content = keys_content.get("content", [])
+        return keys, content
+
+
+    HIERARCHICAL_TYPES = (dict, list)
+    def flatten(self, fields, ep):
+        '''
+        It is tempting to have flatten as a generator, but since we have 
+        to go to the end to check for items with children, then 
+        it is just not too much gain.
+        '''
+        flatten = {}
+        others = []
+        for name, value in fields:
+            list_items = {}
+
+            if isinstance(value, self.HIERARCHICAL_TYPES):
+                nep = form_encoding_path(ep, name)
+                flatten_values, others_c = flatten(value, nep)
+                others.extend(others_c)
+                extend_flatten(flatten, flatten_values)
+            else:
+                extend_flatten(flatten, name, value)
+
+        return flatten, others
 
 
 
