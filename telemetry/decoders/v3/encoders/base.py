@@ -7,6 +7,9 @@ from pygtrie import CharTrie
 ValueField = Dict[str, Union[str, float]]
 Field = Dict[str, Union["Field", ValueField]]
 
+
+RANGE_NUMERS  = [str(x) for x in range(0, 100)]
+
 class BaseEncoding:
     content_key = "content"
     keys_key = "keys"
@@ -101,7 +104,7 @@ class InternalMetric(BaseEncoding):
         
         return JsonTextMetric(new_data)
 
-    def get_extra_keys(self) -> Iterable["InternalMetric"]:
+    def get_extra_keys(self, extra_keys=None) -> Iterable["InternalMetric"]:
         '''
         Generator of new metrics. 
         Navigates the content, finding if there is a new key.
@@ -112,6 +115,9 @@ class InternalMetric(BaseEncoding):
         checking whether the base metric should be yielded as it is or a new
         one must be constructed.
         '''
+        if extra_keys is not None:
+            self.extra_keys = extra_keys
+
         fields, changed = yield from self._get_extra_keys(self.content, self.path)
         if changed and fields:
             new_data = self.data.copy()
@@ -133,6 +139,7 @@ class InternalMetric(BaseEncoding):
         # if the path is not included just return
         if not self.extra_keys.has_node(path):
             return fields, changed
+
 
         # if we are in a list, we check one by one the elements and create a new list with 
         # the results
@@ -156,6 +163,9 @@ class InternalMetric(BaseEncoding):
         # We add them all at the end
         for fname, fcontent  in fields.items():
             n_path = self.form_encoding_path(path, [fname])
+            if "class-stats" in path:
+                import pytest
+                #pytest.set_trace()
             if not self.extra_keys.has_node(n_path):
                 continue
             if n_path in self.extra_keys:
@@ -166,6 +176,7 @@ class InternalMetric(BaseEncoding):
 
             if isinstance(fcontent, self.HIERARCHICAL_TYPES):
                 fields_with_children[fname] = n_path
+
 
         # if we have any new keys, we need to split here. We do it and yield
         # anything new from the new metric (we ignore the fields_with_children
@@ -225,7 +236,7 @@ class InternalMetric(BaseEncoding):
         new_data[self.keys_key] = new_keys
         new_data[self.content_key] = current_content
         newmetric = InternalMetric(new_data)
-        yield from newmetric.get_extra_keys()
+        yield from newmetric.get_extra_keys(self.extra_keys)
 
     def flatten(self, flatten_config=None):
         '''
@@ -234,9 +245,68 @@ class InternalMetric(BaseEncoding):
         flatten_lists -> sends elements of lists into itw own metric
         flatten_keys
         flatten_hierarchies -> remove hierrachies
+
         '''
-        if flatten_data is None:
-            flatten_data = {}
+        pass
+
+    def value_to_string(self, value):
+        return json.dumps(value)
+
+    def lists_to_strings(self, fields, keys, path, new_keys):
+        for key in keys:
+            value = fields[key]
+            new_value = self.value_to_string(value)
+            fields[key] = new_value
+        return fields
+        yield
+
+    def flatten_lists(self, fields, path, list_keys):
+        for key in list_keys:
+            for instance in fields[key]:
+                new_data = self.data.copy()
+                new_data[self.p_key] = path
+                new_data[self.content_key] = instance
+                newmetric = InternalMetric(new_data)
+                yield newmetric
+
+    def flatten_hierarchies(self, fields, keys, keep_naming=False):
+        for key in keys:
+            values = fields[key]
+            for value in values:
+                if isinstance(fcontent, dict):
+                    newvalue = self.flatten_content(self, fields, levels)
+                    fields[key] = newvalue
+                elif isinstance(fcontent, list):
+                    # we dont do this well, we just convert to string
+                    # complain here.
+                    complain
+                    newvalue = self.lists_to_strings()
+                    fields[key] = newvalue
+                else:
+                    new_name = self.find_name(fiedls, value, keep_naming)
+                    fields[new_name] = value
+    
+    def find_name(self, fields, field, keep_naming, levels):
+        prefix = ""
+        if keep_naming:
+            prefix = level
+        # the sorted makes this a bit more deterministic
+        for value in sorted(values):
+            base_name = '_'.join([prefix, value])
+            if base_name in fields:
+                for x in RANGE_NUMERS:
+                    candidate = '_'.join([base_name, str(x)])
+                    if candidate not in fields:
+                        break
+                else:
+                    raise Exception
+                # find a name with the structure prefix_name_number, but complaint.
+                complain
+                name = candidate
+            else:
+                name = base_name
+            fields[name] = value
+        fields.pop(name, None)
 
 
 

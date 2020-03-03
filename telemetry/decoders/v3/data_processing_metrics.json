@@ -1,0 +1,453 @@
+{
+  "tests": [
+    {
+      "name": "extra_keys_qos_class-name",
+      "config": {
+        "extra_keys": [
+          "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name"
+        ]
+      },
+      "data": {
+        "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+        "keys": {
+          "interface-name": [
+            "Bundle-Ether3",
+            "TenGigE0/2/0/3/0"
+          ],
+          "node-name": "0/RP0/CPU0",
+          "service-policy-name": "ntt-cos-out"
+        },
+        "content": {
+          "policy-name": "ntt-cos-out",
+          "satid": 0,
+          "state": "active",
+          "class-stats": [
+            {
+              "class-name": "class-default",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-bytes": 9433405,
+                "transmit-packets": 80529
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 9433405,
+                "conform-packets": 80529,
+                "queue-id": 524610,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "random-drop-bytes": 0,
+                "red-ecn-marked-packets": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            },
+            {
+              "class-name": "ntp-limit",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-packets": 0,
+                "total-drop-bytes": 0,
+                "transmit-bytes": 0,
+                "transmit-packets": 0
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 0,
+                "conform-packets": 0,
+                "conform-rate": 0,
+                "max-threshold-packets": 0,
+                "queue-drop-threshold": 0,
+                "queue-id": 524611,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "profile-title": "Default WRED Curve",
+                "random-drop-bytes": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+          "keys": {
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "policy-name": "ntt-cos-out",
+            "satid": 0,
+            "state": "active"
+          }
+        },
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "class-default",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-bytes": 9433405,
+              "transmit-packets": 80529
+            },
+            "queue-descr": "",
+            "queue-stats-array": {
+              "conform-bytes": 9433405,
+              "conform-packets": 80529,
+              "queue-id": 524610,
+              "queue-instance-length": {
+                "unit": "policy-param-unit-packets",
+                "value": 0
+              },
+              "random-drop-bytes": 0,
+              "tail-drop-packets": 0
+            },
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "random-drop-bytes": 0,
+              "red-ecn-marked-packets": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        },
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "ntp-limit",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-packets": 0,
+              "total-drop-bytes": 0,
+              "transmit-bytes": 0,
+              "transmit-packets": 0
+            },
+            "queue-descr": "",
+            "queue-stats-array": {
+              "conform-bytes": 0,
+              "conform-packets": 0,
+              "conform-rate": 0,
+              "max-threshold-packets": 0,
+              "queue-drop-threshold": 0,
+              "queue-id": 524611,
+              "queue-instance-length": {
+                "unit": "policy-param-unit-packets",
+                "value": 0
+              },
+              "random-drop-bytes": 0,
+              "tail-drop-packets": 0
+            },
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "profile-title": "Default WRED Curve",
+              "random-drop-bytes": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "extra_keys_qos_key_in_queue-stats-array",
+      "config": {
+        "extra_keys": [
+          "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name",
+          "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array/queue-id"
+        ]
+      },
+      "data": {
+        "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+        "keys": {
+          "interface-name": [
+            "Bundle-Ether3",
+            "TenGigE0/2/0/3/0"
+          ],
+          "node-name": "0/RP0/CPU0",
+          "service-policy-name": "ntt-cos-out"
+        },
+        "content": {
+          "policy-name": "ntt-cos-out",
+          "satid": 0,
+          "state": "active",
+          "class-stats": [
+            {
+              "class-name": "class-default",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-bytes": 9433405,
+                "transmit-packets": 80529
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 9433405,
+                "conform-packets": 80529,
+                "queue-id": 524610,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "random-drop-bytes": 0,
+                "red-ecn-marked-packets": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            },
+            {
+              "class-name": "ntp-limit",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-packets": 0,
+                "total-drop-bytes": 0,
+                "transmit-bytes": 0,
+                "transmit-packets": 0
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 0,
+                "conform-packets": 0,
+                "conform-rate": 0,
+                "max-threshold-packets": 0,
+                "queue-drop-threshold": 0,
+                "queue-id": 524611,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "profile-title": "Default WRED Curve",
+                "random-drop-bytes": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+          "keys": {
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "policy-name": "ntt-cos-out",
+            "satid": 0,
+            "state": "active"
+          }
+        },
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "class-default",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-bytes": 9433405,
+              "transmit-packets": 80529
+            },
+            "queue-descr": "",
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "random-drop-bytes": 0,
+              "red-ecn-marked-packets": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        },
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array",
+          "keys": {
+            "class-name": "class-default",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "queue-id": 524610,
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "conform-bytes": 9433405,
+            "conform-packets": 80529,
+            "queue-instance-length": {
+              "unit": "policy-param-unit-packets",
+              "value": 0
+            },
+            "random-drop-bytes": 0,
+            "tail-drop-packets": 0
+          }
+        },
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "ntp-limit",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-packets": 0,
+              "total-drop-bytes": 0,
+              "transmit-bytes": 0,
+              "transmit-packets": 0
+            },
+            "queue-descr": "",
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "profile-title": "Default WRED Curve",
+              "random-drop-bytes": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        },
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array",
+          "keys": {
+            "class-name": "ntp-limit",
+            "queue-id": 524611,
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "conform-bytes": 0,
+            "conform-packets": 0,
+            "conform-rate": 0,
+            "max-threshold-packets": 0,
+            "queue-drop-threshold": 0,
+            "queue-instance-length": {
+              "unit": "policy-param-unit-packets",
+              "value": 0
+            },
+            "random-drop-bytes": 0,
+            "tail-drop-packets": 0
+          }
+        }
+      ]
+    }
+  ]
+}
