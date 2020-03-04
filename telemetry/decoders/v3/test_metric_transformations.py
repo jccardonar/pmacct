@@ -1,7 +1,8 @@
 import pytest
 import json
-from .encoders.base import InternalMetric
+from .encoders.base import InternalMetric, ExtraKeysTransformation, CombineTransformationSeries
 from pygtrie import CharTrie
+from pprint import pprint
 
 FILE_TESTS = "data_processing_metrics.json"
 
@@ -29,6 +30,8 @@ def get_operations(config):
     for key in config:
         if "extra_keys" in config:
             operations[key] = get_trie(config, key)
+        if "combine_series" in config:
+            operations[key] = config[key]
     leftovers =  set(config) - set(operations)
     if leftovers:
         raise Exception(f"We have left keys in config: {leftovers}")
@@ -51,9 +54,24 @@ class TestEncodingTransformation:
         
         # process operations
         results = []
+        transformation = None
         for operation in operations:
-            if operation == "extra_keys":
-                results.extend(metric.get_extra_keys(operations[operation]))
+            if "extra_keys" in operation:
+                #results.extend(metric.get_extra_keys(operations[operation]))
+                transformation = ExtraKeysTransformation(operations[operation])
+            if "combine_series" in operation:
+                transformations = []
+                for key in operations[operation]:
+                    if "extra_keys" in key:
+                        #results.extend(metric.get_extra_keys(operations[operation]))
+                        trie = get_trie(operations[operation], key)
+                        transformation = ExtraKeysTransformation(trie)
+                        transformations.append(transformation)
+                transformation = CombineTransformationSeries(transformations)
+        if transformation is None:
+            pytest.fail("Found no transformation")
+
+        results = list(metric.transform(transformation))
 
         gotten_data = [x.data for x in results]
         sorted_gottan_data = sort_data(gotten_data)

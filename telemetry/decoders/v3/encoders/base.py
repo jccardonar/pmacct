@@ -55,7 +55,10 @@ class BaseEncoding:
     def form_encoding_path(encoding_path, levels):
         if not levels:
             return encoding_path
-        if encoding_path[-1] == "/":
+        # if there is no encoding path, then we just return the levesl
+        if not encoding_path:
+            return '/'.join(levels)
+        if encoding_path and encoding_path[-1] == "/":
             encoding_path = encoding_path[:-1]
         return '/'.join([encoding_path, '/'.join(levels)])
 
@@ -88,6 +91,16 @@ class InternalMetric(BaseEncoding):
         self.extra_keys = extra_keys
         super().__init__(data)
 
+    def replace(self, content=None, keys=None, path=None):
+        new_data = self.data.copy()
+        if content is not None:
+            new_data[self.content_key] = content
+        if keys is not None:
+            new_data[self.keys_key] = keys
+        if path is not None:
+            new_data[self.p_key] = path
+        return InternalMetric(new_data)
+
     def flatten_data(self) -> Iterable[Sequence[ValueField]]:
         pass
 
@@ -119,11 +132,13 @@ class InternalMetric(BaseEncoding):
             self.extra_keys = extra_keys
 
         fields, changed = yield from self._get_extra_keys(self.content, self.path)
-        if changed and fields:
-            new_data = self.data.copy()
-            new_data[self.content_key] = fields
-            new_self = InternalMetric(new_data)
-            yield new_self
+        if changed:
+            if fields:
+                #new_data = self.data.copy()
+                #new_data[self.content_key] = fields
+                #new_self = InternalMetric(new_data)
+                #yield new_self
+                yield self.replace(content=fields)
             return
         yield self
 
@@ -163,9 +178,6 @@ class InternalMetric(BaseEncoding):
         # We add them all at the end
         for fname, fcontent  in fields.items():
             n_path = self.form_encoding_path(path, [fname])
-            if "class-stats" in path:
-                import pytest
-                #pytest.set_trace()
             if not self.extra_keys.has_node(n_path):
                 continue
             if n_path in self.extra_keys:
@@ -207,6 +219,93 @@ class InternalMetric(BaseEncoding):
 
         return fields, changed
 
+    def transform(self, transformation):
+        fields, changed = yield from self._transform(self.content, self.path, transformation)
+        if changed:
+            if fields:
+                yield self.replace(content=fields)
+            return
+        yield self
+
+    def _transform(self, fields: Union[Sequence[Field], Field], path:str, transformation):
+        '''
+        This function is a generator that also returns values.
+        The return includes the new set of fields, and a bool marking whether
+        the fields changed from the input.
+        '''
+        changed = False
+
+        # if the path is not included just return
+        if not transformation.has_node(path):
+            return fields, changed
+
+        # if we are in a list, we check one by one the elements and create a new list with 
+        # the results
+        if isinstance(fields, list):
+            nlist = []
+            for field in fields:
+                ncontents, cchanged = yield from self._transform(field, path, transformation)
+                if cchanged:
+                    changed = True
+                if ncontents:
+                    nlist.append(ncontents)
+            # nothing else to do
+            return nlist, changed
+
+        # from here, fields is a "field"
+        new_keys = {}
+        key_state = {}
+        fields_with_children = {}
+        fields = fields.copy()
+
+        # we go over the fields, checking whether we have a new key. 
+        # We add them all at the end
+        for fname, fcontent  in fields.items():
+            n_path = self.form_encoding_path(path, [fname])
+            if not transformation.has_node(n_path):
+                continue
+            has_key, state = transformation.has_key(n_path)
+            if has_key:
+                # we are in a new key here.
+                # we dont even check for type of content. 
+                # Although that could break stuff.
+                new_keys[fname] = fcontent
+                key_state[fname] = state
+
+            if isinstance(fcontent, self.HIERARCHICAL_TYPES):
+                fields_with_children[fname] = n_path
+
+
+        # if we have any new keys, we need to split here. We do it and yield
+        # anything new from the new metric (we ignore the fields_with_children
+        if new_keys:
+            # we need to split the metric here.
+            changed = True
+            yield from transformation.transform(self, fields, path, new_keys, key_state)
+            # we return empty.
+            return {}, changed
+
+        elif fields_with_children:
+            # if we have children, this means we have children
+            # lists or composed fields.
+            for fname, n_path in fields_with_children.items():
+                fcontent = fields[fname]
+                # if there is no content we ignore.
+                if not fcontent:
+                    continue
+                # we yield all internal keys, then we replace
+                # the value if there was any change.
+                ncontents, cchanged = yield from self._transform(fcontent, n_path, transformation)
+                if cchanged:
+                    changed = True
+                    fields.pop(fname, None)
+                    # not write the new field if empty
+                    if ncontents:
+                        fields[fname] = ncontents
+
+        return fields, changed
+
+
     def add_keys(self, current_keys, extra_keys):
         new_keys = current_keys.copy()
         for key, value in extra_keys.items():
@@ -226,17 +325,18 @@ class InternalMetric(BaseEncoding):
 
 
     def split_on_extra_keys(self, fields, path, new_keys):
-        new_data = self.data.copy()
         current_keys = self.keys
         new_keys = self.add_keys(current_keys, new_keys)
-        new_data[self.p_key] = path
         current_content = fields
         for key in new_keys:
             current_content.pop(key, None)
-        new_data[self.keys_key] = new_keys
-        new_data[self.content_key] = current_content
-        newmetric = InternalMetric(new_data)
-        yield from newmetric.get_extra_keys(self.extra_keys)
+        #new_data = self.data.copy()
+        #new_data[self.p_key] = path
+        #new_data[self.keys_key] = new_keys
+        #new_data[self.content_key] = current_content
+        #newmetric = InternalMetric(new_data)
+        yield from self.replace(content=current_content, keys=new_keys, path=path).get_extra_keys(self.extra_keys)
+        #yield from newmetric.get_extra_keys(self.extra_keys)
 
     def flatten(self, flatten_config=None):
         '''
@@ -310,7 +410,146 @@ class InternalMetric(BaseEncoding):
 
 
 
+class MetricTransformation(ABC):
 
+    def __init__(self, data_per_path):
+        self.data_per_path = data_per_path
+
+    def has_node(self, path: str) -> bool:
+        '''
+        Checks whether an encoding path is covered by the operation
+        '''
+        return self.data_per_path.has_node(path) > 0
+
+    def has_key(self, path: str) -> bool:
+        '''
+        Checks whether the operation applies to a field, and returns state that is needed later
+        '''
+        return (path in self.data_per_path, None)
+    
+    @abstractmethod
+    def transform(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
+        pass
+
+    def tranform_list(self, generator):
+        for metric in generator:
+            yield from metric.transform(self)
+
+class ExtraKeysTransformation(MetricTransformation):
+    def transform(self, metric, fields, path, new_keys, key_state):
+        current_keys = metric.keys
+        new_keys = metric.add_keys(current_keys, new_keys)
+        current_content = fields
+        for key in new_keys:
+            current_content.pop(key, None)
+        #new_data = self.data.copy()
+        #new_data[self.p_key] = path
+        #new_data[self.keys_key] = new_keys
+        #new_data[self.content_key] = current_content
+        #newmetric = InternalMetric(new_data)
+        yield from metric.replace(content=current_content, keys=new_keys, path=path).transform(self)
+
+class CombineTransformationSeries(MetricTransformation):
+    '''
+    This is kind of broken implementation, since it has state. Not sure how to do it better
+    without needing to pack and unpack too many times.
+    '''
+    def __init__(self, transformations: Sequence["MetricTransformation"]):
+        self.transformations = transformations
+
+    def has_node(self, path: str) -> bool:
+        '''
+        Checks whether an encoding path is covered by the operation
+        '''
+        for t in self.transformations:
+            if t.has_node(path):
+                return True
+        return False
+
+    def has_key(self, path: str):
+        '''
+        Checks whether the operation applies to a field
+        '''
+        for n, t in enumerate(self.transformations):
+            has, state = t.has_key(path)
+            if has:
+                return (True, (n, state))
+        return (False, (None, None))
+
+    
+    def transform(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
+        # here we apply only the first operation
+        state_per_transform = {}
+        for key, (n, state) in key_state.items():
+            state_per_transform.setdefault(n, {})[key] = state
+        min_n = min(state_per_transform)
+        state = state_per_transform[min_n]
+        keys_content = {x: y for x,y in keys.items() if x in state}
+        yield from self.tranform_list(self.transformations[min_n].transform(metric, fields, path, keys_content, state))
+
+
+def TransformationChangeLeaf(MetricTransformation):
+    @abstractmethod
+    def _key_value_transform(self, fields, keys):
+        pass
+
+    def transform(self, metric, fields, path, keys, key_state):
+        new_fields = self._key_value_transform(fields, keys)
+        yield metric.replace(content=new_fields)
+
+def CombineChangeLeafs(TransformationChangeLeaf):
+
+    def __init__(self, transformations: Sequence[MetricTransformation]):
+        self.transformations = transformations
+
+    def has_node(self, path: str) -> bool:
+        '''
+        Checks whether an encoding path is covered by the operation
+        '''
+        for t in self.transformations:
+            if t.has_node(path):
+                return True
+        return False
+
+    def has_key(self, path: str):
+        '''
+        Checks whether the operation applies to a field
+        '''
+        for n, t in enumerate(self.transformations):
+            has, state = t.has_key(path)
+            if has:
+                return (True, (n, state))
+        return False
+
+    def _key_value_transform(self, fields, keys, key_state):
+        # here we apply only the first operation
+        state_per_transform = {}
+        for key, (n, state) in key_state.items():
+            state_per_transform.setdefault(n, {})[key] = state
+        for n in sorted(state_per_transform):
+            state = state_per_transform[n]
+            keys_content = {x: y for x,y in keys.items() if x in state}
+            fields = self.transformations[n]._key_value_transform(fields, keys_content)
+        return fields
+
+
+def CombineTransformationChangeLeafs(CombineTransformationSeries):
+    '''
+    Different from CombineTransformationSeries, this one mixes transofrmations
+    that do not generate new ones and that can be applied at the same time
+    '''
+    
+    def transform(self, fields, path, keys, key_state) -> Generator[InternalMetric, Any, Tuple[Sequence[Field], bool]]:
+        # here we apply only the first operation
+        state_per_transform = {}
+        for key, (n, state) in key_state.items():
+            state_per_transform.setdefault(n, {})[key] = state
+        for n in sorted(state_per_transform): 
+            state = state_per_transform[n]
+            keys_content = {x: y for x,y in keys.items() if x in state}
+            # We TRUST that nothing is yielded
+            nfields = yield from self.transformations[n].transform(fields, path, keys_content, state)
+        yield from self.transformations[min_n].transform(fields, path, keys_content, state)
 
 
 class JsonTextMetric(BaseEncoding):

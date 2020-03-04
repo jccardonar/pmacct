@@ -1,6 +1,229 @@
 {
   "tests": [
     {
+      "name": "combination_of_extra_keys",
+      "config": {
+        "combine_series": {
+          "extra_keys": [
+            "b",
+            "a/c"
+          ],
+          "extra_keys_1": [
+            "a/d/e",
+            "a/d/b"
+          ]
+        }
+      },
+      "data": {
+        "encodingPath": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": "f"
+              }
+            ],
+            "g": "g"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "a",
+          "keys": {
+            "b": "b",
+            "c": 1
+          },
+          "content": {
+            "g": "g"
+          }
+        },
+        {
+          "encodingPath": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "c"
+            ],
+            "c": 1,
+            "e": 1
+          },
+          "content": {}
+        },
+        {
+          "encodingPath": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "d"
+            ],
+            "c": 1,
+            "e": 2
+          },
+          "content": {
+            "f": "f"
+          }
+        }
+      ]
+    },
+    {
+      "name": "extra_repeated_keys_multiple_keys",
+      "config": {
+        "extra_keys": [
+          "b",
+          "a/c",
+          "a/d/e",
+          "a/d/b"
+        ]
+      },
+      "data": {
+        "encodingPath": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": "f"
+              }
+            ],
+            "g": "g"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "a",
+          "keys": {
+            "b": "b",
+            "c": 1
+          },
+          "content": {
+            "g": "g"
+          }
+        },
+        {
+          "encodingPath": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "c"
+            ],
+            "c": 1,
+            "e": 1
+          },
+          "content": {}
+        },
+        {
+          "encodingPath": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "d"
+            ],
+            "c": 1,
+            "e": 2
+          },
+          "content": {
+            "f": "f"
+          }
+        }
+      ]
+    },
+    {
+      "name": "no_operation_simple",
+      "config": {
+        "extra_keys": [
+          "a/p"
+        ]
+      },
+      "data": {
+        "encodingPath": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              12,
+              4
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "",
+          "keys": {},
+          "content": {
+            "a": {
+              "c": 1,
+              "d": [
+                12,
+                4
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "extra_keys_simple",
+      "config": {
+        "extra_keys": [
+          "b"
+        ]
+      },
+      "data": {
+        "encodingPath": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              12,
+              4
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "",
+          "keys": {
+            "b": "b"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "d": [
+                12,
+                4
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "extra_keys_qos_class-name",
       "config": {
         "extra_keys": [
