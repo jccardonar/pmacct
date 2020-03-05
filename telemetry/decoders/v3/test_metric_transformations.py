@@ -1,6 +1,6 @@
 import pytest
 import json
-from .encoders.base import InternalMetric, ExtraKeysTransformation, CombineTransformationSeries
+from .encoders.base import InternalMetric, ExtraKeysTransformation, CombineTransformationSeries, MetricTransformDummy, RenameKeys
 from pygtrie import CharTrie
 from pprint import pprint
 
@@ -24,7 +24,6 @@ def get_trie(config, key):
     return extra_keys_trie
 
 TRIE_KEYS = {"extra_keys"}
-ALL_KEYS = TRIE_KEYS
 def get_operations(config):
     operations = {}
     for key in config:
@@ -32,7 +31,11 @@ def get_operations(config):
             operations[key] = get_trie(config, key)
         if "combine_series" in config:
             operations[key] = config[key]
-    leftovers =  set(config) - set(operations)
+        if "dummy" in config:
+            operations[key] = config[key]
+        if "rename_keys" in config:
+            operations[key] = config[key]
+    leftovers = set(config) - set(operations)
     if leftovers:
         raise Exception(f"We have left keys in config: {leftovers}")
     return operations
@@ -46,7 +49,7 @@ class TestEncodingTransformation:
 
     # I dont want data and expected to be in the name since they are long
     @pytest.mark.parametrize("n, name", TESTS.keys())
-    def test_transformations(self, n, name):
+    def test_transformations(self, capsys, n, name):
         config, data, expected = TESTS[(n, name)]
         sorted_expected = sort_data(expected)
         metric = InternalMetric(data)
@@ -68,10 +71,25 @@ class TestEncodingTransformation:
                         transformation = ExtraKeysTransformation(trie)
                         transformations.append(transformation)
                 transformation = CombineTransformationSeries(transformations)
+            if "dummy" in operation:
+                transformation = MetricTransformDummy(None)
+            if "rename_keys" in operation:
+                transformation = RenameKeys(operations[operation])
+
+
+        def print_exception(warning):
+            print(warning)
+        transformation.set_warning_function(print_exception)
+
         if transformation is None:
             pytest.fail("Found no transformation")
 
-        results = list(metric.transform(transformation))
+        results = list(transformation.transform(metric))
+        if "expected_warning" in config:
+            captured = capsys.readouterr()
+            for text in config["expected_warning"]:
+                assert text in captured.out
+
 
         gotten_data = [x.data for x in results]
         sorted_gottan_data = sort_data(gotten_data)

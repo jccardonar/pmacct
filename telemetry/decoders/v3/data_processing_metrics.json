@@ -1,6 +1,74 @@
 {
   "tests": [
     {
+      "name": "modify_keys",
+      "config": {
+        "rename_keys": {
+          "other/path": {
+            "b": {
+              "1": "newbalt"
+            },
+            "c": "newcalt"
+          },
+          "path/here/": {
+            "b": {
+              "1": "newb"
+            },
+            "c": "newc"
+          }
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "c": 1,
+          "b": [
+            "b",
+            "c"
+          ],
+          "e": 1
+        },
+        "content": {
+          "anything": 9
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "newc": 1,
+            "b": "b",
+            "newb": "c",
+            "e": 1
+          },
+          "content": {
+            "anything": 9
+          }
+        }
+      ]
+    },
+    {
+      "name": "test_warning",
+      "config": {
+        "dummy": {},
+        "expected_warning": [
+          "Dummy warning"
+        ]
+      },
+      "data": {
+        "encodingPath": "",
+        "keys": {},
+        "content": {}
+      },
+      "expected": [
+        {
+          "encodingPath": "",
+          "keys": {},
+          "content": {}
+        }
+      ]
+    },
+    {
       "name": "combination_of_extra_keys",
       "config": {
         "combine_series": {
