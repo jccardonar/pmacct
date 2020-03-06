@@ -1,6 +1,50 @@
 {
   "tests": [
     {
+      "name": "modify_keys_exception",
+      "config": {
+	"exception": "Key value is not a list",
+        "rename_keys": {
+          "other/path": {
+            "b": "test",
+            "c": {"1": "error"}
+          },
+          "path/here/": {
+            "b": "other",
+            "c": {"1": "error"}
+          }
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "c": 1,
+          "b": [
+            "b",
+            "c"
+          ],
+          "e": 1
+        },
+        "content": {
+          "anything": 9
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "newc": 1,
+            "b": "b",
+            "newb": "c",
+            "e": 1
+          },
+          "content": {
+            "anything": 9
+          }
+        }
+      ]
+    },
+    {
       "name": "modify_keys",
       "config": {
         "rename_keys": {
@@ -12,7 +56,8 @@
           },
           "path/here/": {
             "b": {
-              "1": "newb"
+              "1": "newb",
+	      "8": "other"
             },
             "c": "newc"
           }

@@ -1,6 +1,6 @@
 import pytest
 import json
-from .encoders.base import InternalMetric, ExtraKeysTransformation, CombineTransformationSeries, MetricTransformDummy, RenameKeys
+from .encoders.base import InternalMetric, ExtraKeysTransformation, CombineTransformationSeries, MetricTransformDummy, RenameKeys, MetricExceptionBase
 from pygtrie import CharTrie
 from pprint import pprint
 
@@ -83,6 +83,13 @@ class TestEncodingTransformation:
 
         if transformation is None:
             pytest.fail("Found no transformation")
+
+        if "exception" in config:
+            with pytest.raises(MetricExceptionBase) as excinfo:
+                results = list(transformation.transform(metric))
+            assert config["exception"] in str(excinfo.value)
+            return
+                
 
         results = list(transformation.transform(metric))
         if "expected_warning" in config:

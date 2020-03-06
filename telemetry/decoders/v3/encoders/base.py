@@ -457,7 +457,7 @@ class InternalMetric(BaseEncoding):
                 yield newmetric
 
 
-class MetricWarningBase(Exception):
+class MetricExceptionBase(Exception):
     def __init__(self, msg, params):
         super().__init__(msg)
         self.params = params
@@ -487,18 +487,24 @@ class MetricTransformationBase(ABC):
     def transform(self, metric) -> Sequence["InternalMetric"]:
         pass
 
+class RKEWrongType(MetricExceptionBase):
+    pass
 
 class RenameKeys(MetricTransformationBase):
     def transform(self, metric):
         """
-        Simply modify the keys
+        Simply modify the keys.
+        If the list contain an index not present in the actual keys, this is ignored.
         self.data_per_path is a dict. When keys are repeated, the value is other dict with indices
         """
+        # if the path is not included, just return the same
         if metric.path not in self.data_per_path:
             yield metric
             return
+        # get the info for this path
         path_data = self.data_per_path[metric.path]
         current_keys = {}
+        # we use as a base the info on the metric key. 
         for key, value in metric.keys.items():
             if key not in path_data:
                 metric.add_to_flatten(current_keys, key, value)
@@ -509,6 +515,8 @@ class RenameKeys(MetricTransformationBase):
                 metric.add_to_flatten(current_keys, new_key, value)
                 continue
             # repeated values, value MUST be a list.
+            if not isinstance(value, list):
+                raise RKEWrongType("Key value is not a list but modification is a dict", {"key": key, "path": metric.path})
             key_values = value
             for n, value in enumerate(key_values):
                 n = str(n)
@@ -773,7 +781,7 @@ class MetricTransform(MetricFunction):
             pass
 
 
-class MetricWarningDummy(MetricWarningBase):
+class MetricWarningDummy(MetricExceptionBase):
     pass
 
 
