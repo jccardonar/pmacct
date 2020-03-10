@@ -1,45 +1,341 @@
 {
   "tests": [
     {
-      "name": "modify_keys_exception",
+      "name": "split_extra_combination",
       "config": {
-	"exception": "Key value is not a list",
-        "rename_keys": {
-          "other/path": {
-            "b": "test",
-            "c": {"1": "error"}
-          },
-          "path/here/": {
-            "b": "other",
-            "c": {"1": "error"}
-          }
+        "combine_series": {
+          "split_lists": [
+          "path/here/a/d"
+          ],
+          "extra_keys": [
+          "path/here/a/d/f/a"
+          ]
         }
       },
       "data": {
         "encodingPath": "path/here/",
         "keys": {
-          "c": 1,
-          "b": [
-            "b",
-            "c"
-          ],
-          "e": 1
+          "key": "a"
         },
         "content": {
-          "anything": 9
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9,
+		    "b": 2
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 4,
+		    "b": 3
+                  },
+                  {
+                    "a": 10,
+		    "b": 4
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+	    "a": 3
+          },
+          "content": {
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+            "a": 9
+          },
+          "content": {
+		  "b": 2
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+            "a": 4
+          },
+          "content": {
+		  "b": 3
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+            "a": 10
+          },
+          "content": {
+		  "b": 4
+          }
+        },
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "g": [
+                "a",
+                "b",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 1,
+            "b": "c"
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 2,
+            "b": "d"
+          }
+        }
+      ]
+    },
+    {
+      "name": "splits_lists_hierarchies",
+      "config": {
+        "split_lists": [
+          "path/here/a/d",
+          "path/here/a/d/f"
+        ]
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 3
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 9
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 3
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 10
+          }
+        },
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "g": [
+                "a",
+                "b",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 1,
+            "b": "c"
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 2,
+            "b": "d"
+          }
+        }
+      ]
+    },
+    {
+      "name": "split_lists_sub_set",
+      "config": {
+        "split_lists": [
+          "path/here/a/d"
+        ]
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": "f"
+              }
+            ],
+            "g": [
+              "a",
+              "b",
+              3
+            ]
+          },
+          "b": "b"
         }
       },
       "expected": [
         {
           "encodingPath": "path/here/",
           "keys": {
-            "newc": 1,
-            "b": "b",
-            "newb": "c",
-            "e": 1
+            "key": "a"
           },
           "content": {
-            "anything": 9
+            "a": {
+              "c": 1,
+              "g": [
+                "a",
+                "b",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 1,
+            "b": "c"
+          }
+        },
+        {
+          "encodingPath": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 2,
+            "b": "d",
+            "f": "f"
           }
         }
       ]
@@ -57,7 +353,7 @@
           "path/here/": {
             "b": {
               "1": "newb",
-	      "8": "other"
+              "8": "other"
             },
             "c": "newc"
           }

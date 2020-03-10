@@ -529,6 +529,15 @@ class RenameKeys(MetricTransformationBase):
         yield metric.replace(keys=current_keys)
 
 
+
+# from https://stackoverflow.com/questions/34073370/best-way-to-receive-the-return-value-from-a-python-generator
+class Generator:
+    def __init__(self, gen):
+        self.gen = gen
+
+    def __iter__(self):
+        self.value = yield from self.gen
+
 class MetricSpliting(MetricTransformationBase):
     """
     Base functioning of splitting the metric similar to how the extrq keys function. Other splitting operations might have the same characteristics.
@@ -552,15 +561,17 @@ class MetricSpliting(MetricTransformationBase):
         """
         Checks whether the operation applies to a field, and returns state that is needed later
         """
-        return (path in self.data_per_path, None)
+        return (path in self.data_per_path, path)
 
     @abstractmethod
     def split(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
         pass
 
     def transform_list(self, generator):
-        for metric in generator:
+        generagtor_with_return  = Generator(generator)
+        for metric in generagtor_with_return:
             yield from self.transform(metric)
+        return generagtor_with_return.value
 
     def _split(self, metric, fields: Union[Sequence[Field], Field], path: str):
         """
@@ -612,10 +623,9 @@ class MetricSpliting(MetricTransformationBase):
         # anything new from the new metric (we ignore the fields_with_children
         if new_keys:
             # we need to split the metric here.
-            changed = True
-            yield from self.split(metric, fields, path, new_keys, key_state)
+            new_content, changed = yield from self.split(metric, fields, path, new_keys, key_state)
             # we return empty.
-            return {}, changed
+            return new_content, changed
 
         elif fields_with_children:
             # if we have children, this means we have children
@@ -625,7 +635,7 @@ class MetricSpliting(MetricTransformationBase):
                 # if there is no content we ignore.
                 if not fcontent:
                     continue
-                # we yield all internal keys, then we replace
+                # we yield all internal splits, then we replace
                 # the value if there was any change.
                 ncontents, cchanged = yield from self._split(metric, fcontent, n_path)
                 if cchanged:
@@ -670,7 +680,7 @@ class MetricSplit(MetricFunction):
         """
         Checks whether the operation applies to a field, and returns state that is needed later
         """
-        return (path in self.data_per_path, None)
+        return (path in self.data_per_path, path)
 
     @abstractmethod
     def split(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
@@ -696,7 +706,30 @@ class ExtraKeysTransformation(MetricSpliting):
         new_metric = metric.replace(content=current_content, keys=new_keys, path=path)
         # now, we need to apply the change also here
         yield from self.transform(new_metric)
+        return {}, True
 
+class NotAList(MetricExceptionBase):
+    pass
+
+class SplitLists(MetricSpliting):
+
+    def split(self, metric, fields, path, new_keys, key_state):
+        current_content = fields
+        for key in new_keys:
+            kpath = key_state[key]
+            elements = current_content.pop(key, None)
+            if not isinstance(elements, list):
+                self.warning(NotAList("Trying to split an element which is not a list", {"key": key}))
+                continue
+            for element in elements:
+                new_metric = metric.replace(content=element, path=kpath)
+                yield from self.transform(new_metric)
+        return current_content, True
+        # new_data = self.data.copy()
+        # new_data[self.p_key] = path
+        # new_data[self.keys_key] = new_keys
+        # new_data[self.content_key] = current_content
+        # newmetric = InternalMetric(new_data)
 
 class CombineTransformationSeries(MetricSpliting):
     """
@@ -734,9 +767,10 @@ class CombineTransformationSeries(MetricSpliting):
         min_n = min(state_per_transform)
         state = state_per_transform[min_n]
         keys_content = {x: y for x, y in keys.items() if x in state}
-        yield from self.transform_list(
+        value  =  yield from self.transform_list(
             self.transformations[min_n].split(metric, fields, path, keys_content, state)
         )
+        return value
 
 
 class MetricTransform(MetricFunction):
