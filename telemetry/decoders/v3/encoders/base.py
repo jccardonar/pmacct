@@ -502,6 +502,7 @@ class ContentTransformation(MetricTransformationBase):
 
     def __init__(self, options, paths):
         self.options = OptionsFields.NO_OPTION
+        self.transform_list_elements = True
         for option_str in options:
             option = getattr(OptionsFields, option_str)
             self.options =  self.options | option
@@ -543,6 +544,8 @@ class ContentTransformation(MetricTransformationBase):
         # if we are in a list, we check one by one the elements and create a new list with
         # the results
         if isinstance(fields, list):
+            if not self.transform_list_elements:
+                return fields
             nlist = []
             for field in fields:
                 if not isinstance(field, HIERARCHICAL_TYPES):
@@ -592,31 +595,115 @@ class ContentTransformation(MetricTransformationBase):
                 if ncontents:
                     fields[fname] = ncontents
 
-        # now convert the fields
-        fields = self.transform_content(metric, fields, path, new_keys, key_state)
+        # now convert the fields, only if there are matches.
+        if new_keys:
+            fields = self.transform_content(metric, fields, path, new_keys, key_state)
         return fields
     
     @abstractmethod
     def transform_content(metric, fields, path, new_keys, key_state):
         pass
 
+
 class FieldToString(ContentTransformation):
+
+    @staticmethod
+    def string_field(value):
+        if isinstance(value, str):
+            new_value = value
+            return new_value
+        return json.dumps(value)
+
 
     def transform_content(self, metric, fields, path, new_keys, key_state):
         new_fields = fields.copy()
         for key in new_keys:
             value = fields[key]
 
-            if isinstance(value, str):
-                new_value = value
-            else:
-                new_value = json.dumps(value)
+            new_value = self.string_field(value)
+
             new_fields[key] = new_value
         return new_fields
 
+class FlattenningLists(MetricExceptionBase):
+    pass
+
+class ExistingNameInFlattening(MetricExceptionBase):
+    pass
+
+
+class FlattenHierarchies(ContentTransformation):
+
+    def __init__(self, keep_naming=False):
+        super().__init__([], None)
+        self.keep_naming = keep_naming
+        self.transform_list_elements = True
+
+    def has_node(self, path: str):
+        """
+        Checks whether an encoding path is covered by the operation
+        """
+        return True
+
+    def has_key(self, path: str, key, content) -> bool:
+        """
+        Checks whether the operation applies to a field, and returns state that is needed later
+        """
+        if isinstance(content, HIERARCHICAL_TYPES):
+            return (True, path)
+        return (False, path)
+
+    def transform_content(self, metric, fields, path, new_keys, key_state):
+        new_fields = fields.copy()
+        # the sorted makes this a bit more deterministic
+        for key in sorted(new_keys):
+            # all keys are the hierarchical ones.
+            value = new_fields.pop(key)
+            kpath = key_state[key]
+
+#           # deal with lists
+            if isinstance(value, list):
+                self.warning(FlattenningLists("Flattening lists", {"path": kpath}))
+                nvalue = FieldToString.string_field(value)
+                new_fields[key] = nvalue
+                continue
+
+           # this must be a dict, that should be already flatten 
+            for ckey, cvalue in value.items():
+                nname = self.find_name(new_fields, key, ckey, kpath)
+                if nname in new_fields:
+                    raise ExistingNameInFlattening("Find name returned an existing value", {"name": nname, "path": kpath, "child_key": ckey})
+                new_fields[nname] = cvalue
+        return new_fields
+
+
+    def find_name(self, fields, key, ckey, path) -> str:
+        prefix = ""
+        if self.keep_naming:
+            prefix = key
+        if prefix:
+            base_name = "_".join([prefix, ckey])
+        else:
+            base_name = ckey
+        name = None
+        if base_name in fields:
+            self.warning(ExistingNameInFlattening("Base name for flattening exists", {"base": base_name, "path": path, "child_key": ckey}))
+            for x in RANGE_NUMERS:
+                candidate = "_".join([base_name, str(x)])
+                if candidate not in fields:
+                    break
+            else:
+                raise ExistingNameInFlattening("Cound not Find a name for hierarchy", {"path": path, "child_key": ckey})
+            # find a name with the structure prefix_name_number, but complaint.
+            name = candidate
+        else:
+            name = base_name
+
+        return name
 
 class CombineContentTransformation(ContentTransformation):
     def __init__(self, transformations: Sequence["ContentTransformation"]):
+        super().__init__([], None)
         self.transformations = transformations
 
     def set_warning_function(self, warning_function):
@@ -1032,74 +1119,6 @@ class MetricTransformDummy(MetricTransform):
 
 
 
-class FlattenHierarchies(MetricTransform):
-    def has_node(self, path: str):
-        """
-        Checks whether an encoding path is covered by the operation
-        """
-        return True
-
-    def has_key(self, path: str, key, content) -> bool:
-        """
-        Checks whether the operation applies to a field, and returns state that is needed later
-        """
-        if isinstance(content, HIERARCHICAL_TYPES):
-            return (True, None)
-        return (False, None)
-
-    def transform(self, metric):
-        fields = metric.content.copy()
-        self.flatten(fields)
-        return metric.replace(content=fields)
-
-    def flatten(self, fields, levels=None):
-        if levels is None:
-            levels = []
-        if isinstance(fields, list):
-            # we ignore lists.
-            complain
-
-        to_flatten = set()
-        flatten_fields = {}
-        for fname, fcontent in fields.items():
-            if isinstance(fcontent, dict):
-                to_flatten.add(fname)
-            else:
-                flatten_fields[key] = value
-
-        if not to_flatten:
-            return fields
-
-        flatten_fields = fields.copy()
-        # the sorted makes this a bit more deterministic
-        for key in sorted(to_flatten):
-            value = fields[key]
-            children_flatten = self.flatten(value)
-            for ckey, cvalue in children_flatten.items():
-                nname = self.find_name(flatten_fields, key, ckey, keep_naming, levels)
-                if nname in flatten_fields:
-                    complain
-                flatten_fields[nname] = cvalue
-
-    def find_name(self, fields, key, ckey, keep_naming) -> str:
-        prefix = ""
-        if keep_naming:
-            prefix = key
-        base_name = "_".join([prefix, ckey])
-        name = None
-        if base_name in fields:
-            for x in RANGE_NUMERS:
-                candidate = "_".join([base_name, str(x)])
-                if candidate not in fields:
-                    break
-            else:
-                raise Exception
-            # find a name with the structure prefix_name_number, but complaint.
-            complain
-            name = candidate
-        else:
-            name = base_name
-        return name
 
 
 def TransformationChangeLeaf(MetricSplit):

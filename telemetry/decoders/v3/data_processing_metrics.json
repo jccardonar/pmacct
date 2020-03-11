@@ -1,6 +1,106 @@
 {
   "tests": [
     {
+      "name": "simple_flattening_keepingnames",
+      "config": {
+        "flattening": {
+          "keep_naming": true
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": "p"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a_a": "test",
+            "a_c": 1,
+            "a_d_p_oi": 0,
+            "a_d_f_fo": 3,
+            "a_d_e": 1,
+            "a_d_ba": "c",
+            "a_g": "p",
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "simple_flattening",
+      "config": {
+        "flattening": {
+          "keep_naming": false
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": "p"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": "test",
+            "c": 1,
+            "oi": 0,
+            "fo": 3,
+            "e": 1,
+            "ba": "c",
+            "g": "p",
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
       "name": "combine_strings_rename",
       "config": {
         "combine_content_trns": {

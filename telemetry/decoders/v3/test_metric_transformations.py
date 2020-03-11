@@ -11,6 +11,7 @@ from .encoders.base import (
     FieldToString,
     RenameContent,
     CombineContentTransformation,
+    FlattenHierarchies
 )
 from pygtrie import CharTrie
 from pprint import pprint
@@ -71,6 +72,47 @@ def get_operations(config):
     return operations
 
 
+def transformation_factory(key, data):
+    transformation = None
+    if "extra_keys" in key:
+        paths = get_trie(data, key)
+        transformation = ExtraKeysTransformation(paths)
+    if "split_lists" in key:
+        paths = get_trie(data, key)
+        transformation = SplitLists(paths)
+    if "dummy" in key:
+        transformation = MetricTransformDummy(None)
+    if "rename_keys" in key:
+        transformation = RenameKeys(data[key])
+    if "field_to_str" in key:
+        paths = get_trie(data[key], "paths")
+        transformation = FieldToString(data[key]["options"], paths)
+    if "rename_content" in key:
+        paths = get_trie(data, key)
+        transformation = RenameContent(paths)
+    if "flattening" in key:
+        transformation = FlattenHierarchies(**data[key])
+    if "combine_series" in key:
+        config = data[key]
+        transformations = []
+        for skey in config:
+            stransformation = transformation_factory(skey, config)
+            if stransformation is None:
+                raise Exception(f"Ilelgal key {skey} in combine_series")
+            transformations.append(stransformation)
+        transformation = CombineTransformationSeries(transformations)
+    if "combine_content" in key:
+        config = data[key]
+        transformations = []
+        for skey in config:
+            stransformation = transformation_factory(skey, config)
+            if stransformation is None:
+                raise Exception(f"Ilelgal key {skey} in combine_series")
+            transformations.append(stransformation)
+        transformation = CombineContentTransformation(transformations)
+    return transformation
+
+
 TESTS = load_tests()
 
 
@@ -88,53 +130,71 @@ class TestEncodingTransformation:
         config, data, expected = TESTS[(n, name)]
         sorted_expected = sort_data(expected)
         metric = InternalMetric(data)
-        operations = get_operations(config)
 
         # process operations
         results = []
+        #operations = get_operations(config)
+        #transformation = None
+        #for operation in operations:
+        #    if "extra_keys" in operation:
+        #        # results.extend(metric.get_extra_keys(operations[operation]))
+        #        transformation = ExtraKeysTransformation(operations[operation])
+        #    if "combine_series" in operation:
+        #        transformations = []
+        #        for key in operations[operation]:
+        #            if "extra_keys" in key:
+        #                # results.extend(metric.get_extra_keys(operations[operation]))
+        #                trie = get_trie(operations[operation], key)
+        #                transformation = ExtraKeysTransformation(trie)
+        #                transformations.append(transformation)
+        #            if "split_lists" in key:
+        #                trie = get_trie(operations[operation], key)
+        #                transformation = SplitLists(trie)
+        #                transformations.append(transformation)
+        #        transformation = CombineTransformationSeries(transformations)
+        #    if "combine_content" in operation:
+        #        transformations = []
+        #        for key in operations[operation]:
+        #            if "field_to_str" in key:
+        #                # results.extend(metric.get_extra_keys(operations[operation]))
+        #                paths = get_trie(operations[operation][key], "paths")
+        #                transformation = FieldToString(
+        #                    operations[operation][key]["options"], paths
+        #                )
+        #                transformations.append(transformation)
+        #            if "rename_content" in key:
+        #                paths = get_trie(operations[operation], key)
+        #                transformation = RenameContent(paths)
+        #                transformations.append(transformation)
+        #        transformation = CombineContentTransformation(transformations)
+        #    if "dummy" in operation:
+        #        transformation = MetricTransformDummy(None)
+        #    if "rename_keys" in operation:
+        #        transformation = RenameKeys(operations[operation])
+        #    if "split_lists" in operation:
+        #        transformation = SplitLists(operations[operation])
+        #    if "field_to_str" in operation:
+        #        paths = get_trie(operations[operation], "paths")
+        #        transformation = FieldToString(operations[operation]["options"], paths)
+        #    if "rename_content" in operation:
+        #        paths = get_trie(operations, operation)
+        #        transformation = RenameContent(paths)
+
         transformation = None
-        for operation in operations:
-            if "extra_keys" in operation:
-                # results.extend(metric.get_extra_keys(operations[operation]))
-                transformation = ExtraKeysTransformation(operations[operation])
-            if "combine_series" in operation:
-                transformations = []
-                for key in operations[operation]:
-                    if "extra_keys" in key:
-                        # results.extend(metric.get_extra_keys(operations[operation]))
-                        trie = get_trie(operations[operation], key)
-                        transformation = ExtraKeysTransformation(trie)
-                        transformations.append(transformation)
-                    if "split_lists" in key:
-                        trie = get_trie(operations[operation], key)
-                        transformation = SplitLists(trie)
-                        transformations.append(transformation)
-                transformation = CombineTransformationSeries(transformations)
-            if "combine_content" in operation:
-                transformations = []
-                for key in operations[operation]:
-                    if "field_to_str" in key:
-                        # results.extend(metric.get_extra_keys(operations[operation]))
-                        paths = get_trie(operations[operation][key], "paths")
-                        transformation = FieldToString(operations[operation][key]["options"], paths)
-                        transformations.append(transformation)
-                    if "rename_content" in key:
-                        paths = get_trie(operations[operation], key)
-                        transformation = RenameContent(paths)
-                        transformations.append(transformation)
-                transformation = CombineContentTransformation(transformations)
-            if "dummy" in operation:
-                transformation = MetricTransformDummy(None)
-            if "rename_keys" in operation:
-                transformation = RenameKeys(operations[operation])
-            if "split_lists" in operation:
-                transformation = SplitLists(operations[operation])
-            if "field_to_str" in operation:
-                paths = get_trie(operations[operation], "paths")
-                transformation = FieldToString(operations[operation]["options"], paths)
-            if "rename_content" in operation:
-                paths = get_trie(operations, operation)
-                transformation = RenameContent(paths)
+        for key in config:
+            this_transformation = transformation_factory(key, config)
+            if this_transformation is None:
+                if key not in IGNORED_KEYS:
+                    raise Exception("Option {key} is not recognized")
+                continue
+            if transformation is not None:
+                raise Exception(
+                    "We do not support two transformations in the same test"
+                )
+            transformation = this_transformation
+
+        if transformation is None:
+            raise Exception("No transformation found in test")
 
         def print_exception(warning):
             print(warning)
@@ -151,10 +211,13 @@ class TestEncodingTransformation:
             return
 
         results = list(transformation.transform(metric))
+
+        captured = capsys.readouterr()
         if "expected_warning" in config:
-            captured = capsys.readouterr()
             for text in config["expected_warning"]:
                 assert text in captured.out
+        else:
+            assert not captured.out
 
         gotten_data = [x.data for x in results]
         sorted_gottan_data = sort_data(gotten_data)
