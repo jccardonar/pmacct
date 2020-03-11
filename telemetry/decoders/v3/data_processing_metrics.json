@@ -1,13 +1,104 @@
 {
   "tests": [
-{
+    {
+      "name": "combine_strings_rename",
+      "config": {
+        "combine_content_trns": {
+          "field_to_str": {
+            "paths": [
+              "path/here/a/g"
+            ],
+            "options": []
+          },
+          "rename_content": {
+            "path/here/a/c": "new_c",
+            "path/here/a": "b"
+          },
+          "field_to_str_1": {
+            "paths": [],
+            "options": [
+              "LISTS"
+            ]
+          },
+          "rename_content_1": {
+            "path/here/a/g": "new_g"
+          }
+        },
+        "expected_warning": [
+          "Name already exists"
+        ]
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "new_c": 1,
+              "d": "[{\"e\":1,\"b\":\"c\",\"p\":{\"oi\":0},\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":9}]\"},{\"e\":2,\"b\":\"d\",\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":10}]\"}]",
+              "new_g": "[\"a\",\"b_8\",3]"
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
       "name": "rename_fields_warning",
       "config": {
         "rename_content": {
-            "path/here/a": "b",
-            "path/here/a/d/p": "new_p",
-            "path/here/a/c": "new_c",
-            "path/here/a/d/f/a": "new_a"
+          "path/here/a": "b",
+          "path/here/a/d/p": "new_p",
+          "path/here/a/c": "new_c",
+          "path/here/a/d/f/a": "new_a"
         },
         "expected_warning": [
           "Name already exists"
@@ -112,10 +203,10 @@
       "name": "rename_fields",
       "config": {
         "rename_content": {
-            "path/here/a": "new_a",
-            "path/here/a/d/p": "new_p",
-            "path/here/a/c": "new_c",
-            "path/here/a/d/f/a": "new_a"
+          "path/here/a": "new_a",
+          "path/here/a/d/p": "new_p",
+          "path/here/a/c": "new_c",
+          "path/here/a/d/f/a": "new_a"
         }
       },
       "data": {

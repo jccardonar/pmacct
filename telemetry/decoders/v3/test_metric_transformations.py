@@ -10,6 +10,7 @@ from .encoders.base import (
     SplitLists,
     FieldToString,
     RenameContent,
+    CombineContentTransformation,
 )
 from pygtrie import CharTrie
 from pprint import pprint
@@ -42,26 +43,29 @@ def get_trie(config, key):
 
 
 TRIE_KEYS = {"extra_keys"}
+IGNORED_KEYS = {"expected_warning", "exception"}
 
 
 def get_operations(config):
     operations = {}
     for key in config:
-        if "extra_keys" in config:
+        if "extra_keys" in key:
             operations[key] = get_trie(config, key)
-        if "split_lists" in config:
+        if "split_lists" in key:
             operations[key] = get_trie(config, key)
-        if "combine_series" in config:
+        if "combine_series" in key:
             operations[key] = config[key]
-        if "dummy" in config:
+        if "combine_content" in key:
             operations[key] = config[key]
-        if "rename_keys" in config:
+        if "dummy" in key:
             operations[key] = config[key]
-        if "field_to_str" in config:
+        if "rename_keys" in key:
             operations[key] = config[key]
-        if "rename_content" in config:
+        if "field_to_str" in key:
             operations[key] = config[key]
-    leftovers = set(config) - set(operations)
+        if "rename_content" in key:
+            operations[key] = config[key]
+    leftovers = set(config) - set(operations) - IGNORED_KEYS
     if leftovers:
         raise Exception(f"We have left keys in config: {leftovers}")
     return operations
@@ -105,8 +109,20 @@ class TestEncodingTransformation:
                         trie = get_trie(operations[operation], key)
                         transformation = SplitLists(trie)
                         transformations.append(transformation)
-
                 transformation = CombineTransformationSeries(transformations)
+            if "combine_content" in operation:
+                transformations = []
+                for key in operations[operation]:
+                    if "field_to_str" in key:
+                        # results.extend(metric.get_extra_keys(operations[operation]))
+                        paths = get_trie(operations[operation][key], "paths")
+                        transformation = FieldToString(operations[operation][key]["options"], paths)
+                        transformations.append(transformation)
+                    if "rename_content" in key:
+                        paths = get_trie(operations[operation], key)
+                        transformation = RenameContent(paths)
+                        transformations.append(transformation)
+                transformation = CombineContentTransformation(transformations)
             if "dummy" in operation:
                 transformation = MetricTransformDummy(None)
             if "rename_keys" in operation:

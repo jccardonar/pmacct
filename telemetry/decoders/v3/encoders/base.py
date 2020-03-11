@@ -606,9 +606,60 @@ class FieldToString(ContentTransformation):
         new_fields = fields.copy()
         for key in new_keys:
             value = fields[key]
-            new_value = json.dumps(value)
+
+            if isinstance(value, str):
+                new_value = value
+            else:
+                new_value = json.dumps(value)
             new_fields[key] = new_value
         return new_fields
+
+
+class CombineContentTransformation(ContentTransformation):
+    def __init__(self, transformations: Sequence["ContentTransformation"]):
+        self.transformations = transformations
+
+    def set_warning_function(self, warning_function):
+        self._warning = warning_function
+        for trs in self.transformations:
+            trs.set_warning_function(warning_function)
+
+    def has_node(self, path: str) -> bool:
+        """
+        Checks whether an encoding path is covered by the operation
+        """
+        for t in self.transformations:
+            if t.has_node(path):
+                return True
+        return False
+
+    def has_key(self, path, key, value):
+        """
+        Checks whether the operation applies to a field
+        """
+        global_state = {}
+        global_has_key  = False
+        for n, t in enumerate(self.transformations):
+            has, state = t.has_key(path, key, value)
+            if has:
+                global_has_key = True
+                global_state[n] = state
+        return (global_has_key, global_state)
+
+    def transform_content(self, metric, fields, path, new_keys, key_state):
+        new_fields = fields.copy()
+        # we need to do a conversion here, which is a pity
+        state_per_transformer = {}
+
+        for key, n_state in key_state.items():
+            for n, state in n_state.items():
+                state_per_transformer.setdefault(n, {})[key] = state
+        for n in sorted(state_per_transformer):
+            state = state_per_transformer[n]
+            transformation = self.transformations[n]
+            new_fields = transformation.transform_content(metric, new_fields, path, state, state)
+        return new_fields
+
 
 class ExsitingName(MetricExceptionBase):
     pass
@@ -883,6 +934,12 @@ class CombineTransformationSeries(MetricSpliting):
     def __init__(self, transformations: Sequence["MetricSplit"]):
         self.transformations = transformations
 
+    def set_warning_function(self, warning_function):
+        self._warning = warning_function
+        for trs in self.transformations:
+            trs.set_warning_function(warning_function)
+
+
     def has_node(self, path: str) -> bool:
         """
         Checks whether an encoding path is covered by the operation
@@ -1059,6 +1116,11 @@ def CombineChangeLeafs(TransformationChangeLeaf):
     def __init__(self, transformations: Sequence[MetricSplit]):
         self.transformations = transformations
 
+    def set_warning_function(self, warning_function):
+        self._warning = warning_function
+        for trs in self.transformations:
+            trs.set_warning_function(warning_function)
+
     def has_node(self, path: str) -> bool:
         """
         Checks whether an encoding path is covered by the operation
@@ -1114,6 +1176,10 @@ def CombineTransformationChangeLeafs(CombineTransformationSeries):
             fields, path, keys_content, state
         )
 
+    def set_warning_function(self, warning_function):
+        self._warning = warning_function
+        for trs in self.transformations:
+            trs.set_warning_function(warning_function)
 
 class JsonTextMetric(BaseEncoding):
     """
