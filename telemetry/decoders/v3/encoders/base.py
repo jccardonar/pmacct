@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Iterable, Sequence, Dict, Union, Any, Generator, Tuple
 import ujson as json
 from pygtrie import CharTrie
+from enum import Flag, auto
 
 # Types
 ValueField = Dict[str, Union[str, float]]
@@ -486,6 +487,148 @@ class MetricTransformationBase(ABC):
     @abstractmethod
     def transform(self, metric) -> Sequence["InternalMetric"]:
         pass
+
+class OptionsFields(Flag):
+    NO_OPTION = 0
+    LISTS = auto()
+    FIELDS = auto() # a field is another field level.
+    HIERARCHIES = LISTS | FIELDS
+
+class ContentTransformation(MetricTransformationBase):
+    '''
+    General classes that transform content (do not yield multiple,metrics, only one transformed)
+    It first transforms the hierachically fields.
+    '''
+
+    def __init__(self, options, paths):
+        self.options = OptionsFields.NO_OPTION
+        for option_str in options:
+            option = getattr(OptionsFields, option_str)
+            self.options =  self.options | option
+        super().__init__(paths)
+
+    def has_node(self, path):
+        if self.options.value > 0:
+            # we have options, we need to look at everything.
+            return True
+        return self.data_per_path.has_node(path) > 0
+
+    def has_key(self, path, key, value):
+        if self.options.value > 0:
+            if isinstance(value, list) and OptionsFields.LISTS in self.options:
+                return (True, path)
+            if isinstance(value, dict) and OptionsFields.FIELDS in self.options:
+                return (True, path)
+        if path in self.data_per_path:
+            return (True, path)
+        return (False, path)
+
+    def transform(self, metric):
+        fields = self._transform_contents(metric, metric.content, metric.path)
+        yield metric.replace(content=fields)
+
+    def _transform_contents(
+        self, metric, fields: Union[Sequence[Field], Field], path: str
+    ):
+        """
+        This function is a generator that also returns values.
+        The return includes the new set of fields, and a bool marking whether
+        the fields changed from the input.
+        """
+
+        # if the path is not included just return
+        if not self.has_node(path):
+            return fields
+
+        # if we are in a list, we check one by one the elements and create a new list with
+        # the results
+        if isinstance(fields, list):
+            nlist = []
+            for field in fields:
+                if not isinstance(field, HIERARCHICAL_TYPES):
+                    nlist.append(field)
+                    continue
+                ncontents = self._transform_contents(metric, field, path)
+                if ncontents:
+                    nlist.append(ncontents)
+            # nothing else to do
+            return nlist
+
+        # from here, fields is a "field"
+        new_keys = {}
+        key_state = {}
+        fields_with_children = {}
+        fields = fields.copy()
+
+        # we go over the fields, checking whether we have a new key.
+        # We add them all at the end
+        for fname, fcontent in fields.items():
+            n_path = metric.form_encoding_path(path, [fname])
+            has_key, state = self.has_key(n_path, fname, fcontent)
+            if has_key:
+                # we are in a new key here.
+                # we dont even check for type of content.
+                # Although that could break stuff.
+                new_keys[fname] = fcontent
+                key_state[fname] = state
+
+            if isinstance(fcontent, HIERARCHICAL_TYPES):
+                fields_with_children[fname] = n_path
+
+        # first convert the children
+        if fields_with_children:
+            # if we have children, this means we have children
+            # lists or composed fields.
+            for fname, n_path in fields_with_children.items():
+                fcontent = fields[fname]
+                # if there is no content we ignore.
+                if not fcontent:
+                    continue
+                # we yield all internal keys, then we replace
+                # the value if there was any change.
+                ncontents = self._transform_contents(metric, fcontent, n_path)
+                fields.pop(fname, None)
+                # not write the new field if empty
+                if ncontents:
+                    fields[fname] = ncontents
+
+        # now convert the fields
+        fields = self.transform_content(metric, fields, path, new_keys, key_state)
+        return fields
+    
+    @abstractmethod
+    def transform_content(metric, fields, path, new_keys, key_state):
+        pass
+
+class FieldToString(ContentTransformation):
+
+    def transform_content(self, metric, fields, path, new_keys, key_state):
+        new_fields = fields.copy()
+        for key in new_keys:
+            value = fields[key]
+            new_value = json.dumps(value)
+            new_fields[key] = new_value
+        return new_fields
+
+class ExsitingName(MetricExceptionBase):
+    pass
+
+class RenameContent(ContentTransformation):
+
+    def __init__(self, paths):
+        super().__init__([], paths)
+
+    def transform_content(self, metric, fields, path, new_keys, key_state):
+        new_fields = fields.copy()
+        for key in new_keys:
+            path = key_state[key]
+            new_key = self.data_per_path[path]
+            if new_key in new_fields:
+                self.warning(ExsitingName("Name already exists in path", {"path": path, "name": new_key}))
+                continue
+            value = new_fields.pop(key)
+            new_fields[new_key] = value
+        return new_fields
 
 class RKEWrongType(MetricExceptionBase):
     pass

@@ -8,6 +8,8 @@ from .encoders.base import (
     RenameKeys,
     MetricExceptionBase,
     SplitLists,
+    FieldToString,
+    RenameContent,
 )
 from pygtrie import CharTrie
 from pprint import pprint
@@ -29,8 +31,13 @@ def load_tests():
 
 
 def get_trie(config, key):
+    paths = config[key]
+    if isinstance(paths, list):
+        extra_keys_trie = CharTrie()
+        extra_keys_trie.update({x: True for x in paths})
+        return extra_keys_trie
     extra_keys_trie = CharTrie()
-    extra_keys_trie.update({x: True for x in config[key]})
+    extra_keys_trie.update(paths)
     return extra_keys_trie
 
 
@@ -49,6 +56,10 @@ def get_operations(config):
         if "dummy" in config:
             operations[key] = config[key]
         if "rename_keys" in config:
+            operations[key] = config[key]
+        if "field_to_str" in config:
+            operations[key] = config[key]
+        if "rename_content" in config:
             operations[key] = config[key]
     leftovers = set(config) - set(operations)
     if leftovers:
@@ -102,6 +113,12 @@ class TestEncodingTransformation:
                 transformation = RenameKeys(operations[operation])
             if "split_lists" in operation:
                 transformation = SplitLists(operations[operation])
+            if "field_to_str" in operation:
+                paths = get_trie(operations[operation], "paths")
+                transformation = FieldToString(operations[operation]["options"], paths)
+            if "rename_content" in operation:
+                paths = get_trie(operations, operation)
+                transformation = RenameContent(paths)
 
         def print_exception(warning):
             print(warning)

@@ -1,14 +1,403 @@
 {
   "tests": [
+{
+      "name": "rename_fields_warning",
+      "config": {
+        "rename_content": {
+            "path/here/a": "b",
+            "path/here/a/d/p": "new_p",
+            "path/here/a/c": "new_c",
+            "path/here/a/d/f/a": "new_a"
+        },
+        "expected_warning": [
+          "Name already exists"
+        ]
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "new_c": 1,
+              "d": [
+                {
+                  "new_p": {
+                    "oi": 0
+                  },
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": [
+                "a",
+                "b_8",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rename_fields",
+      "config": {
+        "rename_content": {
+            "path/here/a": "new_a",
+            "path/here/a/d/p": "new_p",
+            "path/here/a/c": "new_c",
+            "path/here/a/d/f/a": "new_a"
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "new_a": {
+              "new_c": 1,
+              "d": [
+                {
+                  "new_p": {
+                    "oi": 0
+                  },
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": [
+                "a",
+                "b_8",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "all_lists_to_dict",
+      "config": {
+        "field_to_str": {
+          "paths": [
+            "path/here/a/g",
+            "path/here/a/d/p"
+          ],
+          "options": [
+            "LISTS"
+          ]
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "b": "b",
+            "a": {
+              "c": 1,
+              "d": "[{\"e\":1,\"b\":\"c\",\"p\":\"{\\\"oi\\\":0}\",\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":9}]\"},{\"e\":2,\"b\":\"d\",\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":10}]\"}]",
+              "g": "[\"a\",\"b_8\",3]"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "general_dict_list_to_text",
+      "config": {
+        "field_to_str": {
+          "paths": [
+            "path/here/a/g",
+            "path/here/a/d/p"
+          ],
+          "options": []
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "d": [
+                {
+                  "f": [
+                    {
+                      "a": 3
+                    },
+                    {
+                      "a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c",
+                  "p": "{\"oi\":0}"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "a": 3
+                    },
+                    {
+                      "a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": "[\"a\",\"b_8\",3]"
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
     {
       "name": "split_extra_combination",
       "config": {
         "combine_series": {
           "split_lists": [
-          "path/here/a/d"
+            "path/here/a/d"
           ],
           "extra_keys": [
-          "path/here/a/d/f/a"
+            "path/here/a/d/f/a"
           ]
         }
       },
@@ -28,7 +417,7 @@
                   },
                   {
                     "a": 9,
-		    "b": 2
+                    "b": 2
                   }
                 ],
                 "e": 1,
@@ -40,11 +429,11 @@
                 "f": [
                   {
                     "a": 4,
-		    "b": 3
+                    "b": 3
                   },
                   {
                     "a": 10,
-		    "b": 4
+                    "b": 4
                   }
                 ]
               }
@@ -63,10 +452,9 @@
           "encodingPath": "path/here/a/d/f",
           "keys": {
             "key": "a",
-	    "a": 3
+            "a": 3
           },
-          "content": {
-          }
+          "content": {}
         },
         {
           "encodingPath": "path/here/a/d/f",
@@ -75,7 +463,7 @@
             "a": 9
           },
           "content": {
-		  "b": 2
+            "b": 2
           }
         },
         {
@@ -85,7 +473,7 @@
             "a": 4
           },
           "content": {
-		  "b": 3
+            "b": 3
           }
         },
         {
@@ -95,7 +483,7 @@
             "a": 10
           },
           "content": {
-		  "b": 4
+            "b": 4
           }
         },
         {
