@@ -16,6 +16,9 @@ class BaseEncoding:
     content_key = "content"
     keys_key = "keys"
     p_key = "encodingPath"
+    node_key  = "node_id"
+    timestamp_key = "timestamp"
+
 
     def __init__(self, data: Dict[Any, Any]):
         self.data = data
@@ -45,6 +48,14 @@ class BaseEncoding:
     @property
     def keys(self):
         return self.load_from_data(self.keys_key, "keys")
+
+    @property
+    def node(self):
+        return self.load_from_data(self.node_key, "node")
+
+    @property
+    def timestamp(self):
+        return self.load_from_data(self.timestamp_key, "timestamp")
 
     @property
     def path(self) -> str:
@@ -125,6 +136,7 @@ class InternalMetric(BaseEncoding):
             new_data[self.keys_key] = new_key
 
         return JsonTextMetric(new_data)
+
 
     def get_extra_keys(self, extra_keys=None) -> Iterable["InternalMetric"]:
         """
@@ -488,6 +500,26 @@ class MetricTransformationBase(ABC):
     def transform(self, metric) -> Sequence["InternalMetric"]:
         pass
 
+    def transform_list(self, generator):
+        '''
+        Takes a generator of metrics and transforms. It keeps the value in case one needs
+        to do  "= yield from"
+        '''
+        generagtor_with_return  = Generator(generator)
+        for metric in generagtor_with_return:
+            yield from self.transform(metric)
+        return generagtor_with_return.value
+
+class FilterMetric(MetricTransformationBase):
+    '''
+    We just filter by encoding path. Other more complex filters can be done,
+    but we dont need the now.
+    '''
+    def transform(self, metric):
+        if metric.path in self.data_per_path:
+            return
+        yield metric
+
 class OptionsFields(Flag):
     NO_OPTION = 0
     LISTS = auto()
@@ -632,7 +664,95 @@ class ExistingNameInFlattening(MetricExceptionBase):
     pass
 
 
-class FlattenHierarchies(ContentTransformation):
+class FlattenFunctions:
+    '''
+    Flatten functions. Choosing inheritance over composition here.
+    '''
+    def find_name(self, fields, key, ckey, path) -> str:
+        prefix = ""
+        if self.keep_naming:
+            prefix = key
+        if prefix:
+            base_name = "_".join([prefix, ckey])
+        else:
+            base_name = ckey
+        name = None
+        if base_name in fields:
+            self.warning(ExistingNameInFlattening("Base name for flattening exists", {"base": base_name, "path": path, "child_key": ckey}))
+            for x in RANGE_NUMERS:
+                candidate = "_".join([base_name, str(x)])
+                if candidate not in fields:
+                    break
+            else:
+                raise ExistingNameInFlattening("Cound not Find a name for hierarchy", {"path": path, "child_key": ckey})
+            # find a name with the structure prefix_name_number, but complaint.
+            name = candidate
+        else:
+            name = base_name
+
+        return name
+
+class TransformationPipeline(MetricTransformationBase):
+    def __init__(self, transformations):
+        self.transformations = transformations
+        super().__init__(None)
+
+    def set_warning_function(self, warning_function):
+        self._warning = warning_function
+        for trs in self.transformations:
+            trs.set_warning_function(warning_function)
+
+    def transform(self, metric):
+        gen = iter([metric])
+        for trf in self.transformations:
+            gen = trf.transform_list(gen)
+        yield from gen
+
+class KeysFlattenOverlap(MetricExceptionBase):
+    pass
+
+class KeysWithDoubleName(MetricExceptionBase):
+    pass
+
+class FlattenHeaders(MetricTransformationBase, FlattenFunctions):
+    '''
+    Flattens metadata into content of the metric.
+    Design decisions:
+    '''
+
+    def __init__(self):
+        self.keep_naming = False
+        super().__init__(None)
+
+    def add_to_field(self, fields, key, value, path):
+        nname = self.find_name(fields, "keys", key, path)
+        if nname in fields:
+            raise ExistingNameInFlattening("Find name returned an existing value", {"name": nname, "path": path, "child_key": key})
+        fields[nname] = value
+
+
+    def transform(self, metric):
+        new_fields = {}
+        self.flatten_keys(metric.keys, metric.path, new_fields)
+        self.add_to_field(new_fields, metric.timestamp_key, metric.timestamp, metric.path)
+        self.add_to_field(new_fields, metric.node_key, metric.node, metric.path)
+
+        # now the content
+        for key, value in metric.content.items():
+            self.add_to_field(new_fields, key, value, metric.path)
+
+        yield  metric.replace(content=new_fields)
+    
+    def flatten_keys(self, keys, path, new_fields):
+        for key, value in keys.items():
+            if isinstance(value, list):
+                for svalue in value:
+                    self.add_to_field(new_fields, key, value, path)
+                self.warning(KeysWithDoubleName("Keys with the same name", {"name": key, "path": path}))
+                continue
+            self.add_to_field(new_fields, key, value, path)
+
+class FlattenHierarchies(ContentTransformation, FlattenFunctions):
 
     def __init__(self, keep_naming=False):
         super().__init__([], None)
@@ -677,29 +797,6 @@ class FlattenHierarchies(ContentTransformation):
         return new_fields
 
 
-    def find_name(self, fields, key, ckey, path) -> str:
-        prefix = ""
-        if self.keep_naming:
-            prefix = key
-        if prefix:
-            base_name = "_".join([prefix, ckey])
-        else:
-            base_name = ckey
-        name = None
-        if base_name in fields:
-            self.warning(ExistingNameInFlattening("Base name for flattening exists", {"base": base_name, "path": path, "child_key": ckey}))
-            for x in RANGE_NUMERS:
-                candidate = "_".join([base_name, str(x)])
-                if candidate not in fields:
-                    break
-            else:
-                raise ExistingNameInFlattening("Cound not Find a name for hierarchy", {"path": path, "child_key": ckey})
-            # find a name with the structure prefix_name_number, but complaint.
-            name = candidate
-        else:
-            name = base_name
-
-        return name
 
 class CombineContentTransformation(ContentTransformation):
     def __init__(self, transformations: Sequence["ContentTransformation"]):
@@ -761,12 +858,16 @@ class RenameContent(ContentTransformation):
         for key in new_keys:
             path = key_state[key]
             new_key = self.data_per_path[path]
+            if new_key is None:
+                new_fields.pop(key, None)
+                continue
             if new_key in new_fields:
                 self.warning(ExsitingName("Name already exists in path", {"path": path, "name": new_key}))
                 continue
             value = new_fields.pop(key)
             new_fields[new_key] = value
         return new_fields
+
 
 class RKEWrongType(MetricExceptionBase):
     pass
@@ -848,11 +949,6 @@ class MetricSpliting(MetricTransformationBase):
     def split(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
         pass
 
-    def transform_list(self, generator):
-        generagtor_with_return  = Generator(generator)
-        for metric in generagtor_with_return:
-            yield from self.transform(metric)
-        return generagtor_with_return.value
 
     def _split(self, metric, fields: Union[Sequence[Field], Field], path: str):
         """

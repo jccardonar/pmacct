@@ -1,9 +1,576 @@
 {
   "tests": [
     {
+      "name": "processing_qos",
+      "config": {
+        "pipeline": {
+          "rename_keys": {
+            "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": {
+              "interface-name": {
+                "1": "member-interface"
+              }
+            }
+          },
+          "extra_keys": [
+            "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name",
+            "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/state"
+          ],
+	  "filter": {
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": true
+	  }
+        }
+      },
+      "data": {
+        "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+        "keys": {
+          "interface-name": [
+            "Bundle-Ether3",
+            "TenGigE0/2/0/3/0"
+          ],
+          "node-name": "0/RP0/CPU0",
+          "service-policy-name": "ntt-cos-out"
+        },
+        "content": {
+          "policy-name": "ntt-cos-out",
+          "satid": 0,
+          "state": "active",
+          "class-stats": [
+            {
+              "class-name": "class-default",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-bytes": 9433405,
+                "transmit-packets": 80529
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 9433405,
+                "conform-packets": 80529,
+                "queue-id": 524610,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "random-drop-bytes": 0,
+                "red-ecn-marked-packets": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            },
+            {
+              "class-name": "ntp-limit",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-packets": 0,
+                "total-drop-bytes": 0,
+                "transmit-bytes": 0,
+                "transmit-packets": 0
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 0,
+                "conform-packets": 0,
+                "conform-rate": 0,
+                "max-threshold-packets": 0,
+                "queue-drop-threshold": 0,
+                "queue-id": 524611,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "profile-title": "Default WRED Curve",
+                "random-drop-bytes": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "interface-name": "Bundle-Ether3",
+            "member-interface": "TenGigE0/2/0/3/0",
+            "node-name": "0/RP0/CPU0",
+            "state": "active",
+            "service-policy-name": "ntt-cos-out",
+            "class-name": "class-default"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-bytes": 9433405,
+              "transmit-packets": 80529
+            },
+            "queue-descr": "",
+            "queue-stats-array": {
+              "conform-bytes": 9433405,
+              "conform-packets": 80529,
+              "queue-id": 524610,
+              "queue-instance-length": {
+                "unit": "policy-param-unit-packets",
+                "value": 0
+              },
+              "random-drop-bytes": 0,
+              "tail-drop-packets": 0
+            },
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "random-drop-bytes": 0,
+              "red-ecn-marked-packets": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        },
+        {
+          "encodingPath": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "interface-name": "Bundle-Ether3",
+            "member-interface": "TenGigE0/2/0/3/0",
+            "node-name": "0/RP0/CPU0",
+            "state": "active",
+            "service-policy-name": "ntt-cos-out",
+            "class-name": "ntp-limit"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-packets": 0,
+              "total-drop-bytes": 0,
+              "transmit-bytes": 0,
+              "transmit-packets": 0
+            },
+            "queue-descr": "",
+            "queue-stats-array": {
+              "conform-bytes": 0,
+              "conform-packets": 0,
+              "conform-rate": 0,
+              "max-threshold-packets": 0,
+              "queue-drop-threshold": 0,
+              "queue-id": 524611,
+              "queue-instance-length": {
+                "unit": "policy-param-unit-packets",
+                "value": 0
+              },
+              "random-drop-bytes": 0,
+              "tail-drop-packets": 0
+            },
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "profile-title": "Default WRED Curve",
+              "random-drop-bytes": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pipeline_flattening_wrnings",
+      "config": {
+        "pipeline": {
+          "flattening_content": {
+            "keep_naming": true
+          },
+          "flattening_headers": {}
+        },
+        "expected_warning": [
+          "Base name for flattening",
+          "Flattening lists"
+        ]
+      },
+      "data": {
+        "node_id": "one_router",
+        "timestamp": 234234234,
+        "encodingPath": "path/here/",
+        "keys": {
+          "key1": 1,
+          "key2": 1,
+          "key3": 1
+        },
+        "content": {
+          "key1": 2,
+          "timestamp": {
+            "0": "other_tst"
+          },
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              3,
+              4,
+              5
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id": "one_router",
+          "timestamp": 234234234,
+          "encodingPath": "path/here/",
+          "keys": {
+            "key1": 1,
+            "key2": 1,
+            "key3": 1
+          },
+          "content": {
+            "key1_0": 2,
+            "node_id": "one_router",
+            "timestamp": 234234234,
+            "timestamp_0": "other_tst",
+            "key1": 1,
+            "key2": 1,
+            "key3": 1,
+            "a_a": "test",
+            "a_c": 1,
+            "a_d_p_oi": 0,
+            "a_d_p_b": 8,
+            "a_d_f_fo": 3,
+            "a_d_e": 1,
+            "a_d_ba": "c",
+            "a_g": "[3,4,5]",
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "flattening_headers_errors",
+      "config": {
+        "flattening_headers": {},
+        "expected_warning": [
+          "Base name for flattening"
+        ]
+      },
+      "data": {
+        "node_id": "one_router",
+        "timestamp": 234234234,
+        "encodingPath": "path/here/",
+        "keys": {
+          "key1": 1,
+          "key2": 1,
+          "key3": 1
+        },
+        "content": {
+          "timestamp": "other_tst",
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id": "one_router",
+          "timestamp": 234234234,
+          "encodingPath": "path/here/",
+          "keys": {
+            "key1": 1,
+            "key2": 1,
+            "key3": 1
+          },
+          "content": {
+            "node_id": "one_router",
+            "timestamp": 234234234,
+            "timestamp_0": "other_tst",
+            "key1": 1,
+            "key2": 1,
+            "key3": 1,
+            "a": {
+              "b": 1,
+              "a": "test",
+              "d": {
+                "p": {
+                  "oi": 0,
+                  "b": 8
+                },
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "t": [
+                    "p",
+                    1,
+                    3
+                  ]
+                },
+                {
+                  "d": [
+                    "p",
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "flattening_headers_no_errors",
+      "config": {
+        "flattening_headers": {}
+      },
+      "data": {
+        "node_id": "one_router",
+        "timestamp": 234234234,
+        "encodingPath": "path/here/",
+        "keys": {
+          "key1": 1,
+          "key2": 1,
+          "key3": 1
+        },
+        "content": {
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id": "one_router",
+          "timestamp": 234234234,
+          "encodingPath": "path/here/",
+          "keys": {
+            "key1": 1,
+            "key2": 1,
+            "key3": 1
+          },
+          "content": {
+            "node_id": "one_router",
+            "timestamp": 234234234,
+            "key1": 1,
+            "key2": 1,
+            "key3": 1,
+            "a": {
+              "b": 1,
+              "a": "test",
+              "d": {
+                "p": {
+                  "oi": 0,
+                  "b": 8
+                },
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "t": [
+                    "p",
+                    1,
+                    3
+                  ]
+                },
+                {
+                  "d": [
+                    "p",
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "flattening_lists_names_warnings",
+      "config": {
+        "flattening_content": {
+          "keep_naming": false
+        },
+        "expected_warning": [
+          "Base name for flattening",
+          "Flattening lists"
+        ]
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": "test",
+            "oi": 0,
+            "fo": 3,
+            "e": 1,
+            "ba": "c",
+            "g": "[{\"t\":\"[\\\"p\\\",1,3]\"},{\"d\":\"[\\\"p\\\",2,3]\"}]",
+            "b": "b",
+            "b_0": 1,
+            "b_0_0": 8
+          }
+        }
+      ]
+    },
+    {
       "name": "simple_flattening_keepingnames",
       "config": {
-        "flattening": {
+        "flattening_content": {
           "keep_naming": true
         }
       },
@@ -53,7 +620,7 @@
     {
       "name": "simple_flattening",
       "config": {
-        "flattening": {
+        "flattening_content": {
           "keep_naming": false
         }
       },
@@ -298,6 +865,172 @@
           }
         }
       ]
+    },
+    {
+      "name": "rename_fields_remove_fields",
+      "config": {
+        "rename_content": {
+          "path/here/a": "new_a",
+          "path/here/a/ignored": null,
+          "path/here/a/d/p": "new_p",
+          "path/here/a/c": "new_c",
+          "path/here/a/d/f/a": "new_a",
+          "path/here/a/d/f/also_ignored": null
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "ignored": 0,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3,
+                    "also_ignored": "p"
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "new_a": {
+              "new_c": 1,
+              "d": [
+                {
+                  "new_p": {
+                    "oi": 0
+                  },
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": [
+                "a",
+                "b_8",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "filter_basic",
+      "config": {
+        "filter": {
+          "path/here/": true
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "ignored": 0,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3,
+                    "also_ignored": "p"
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": []
     },
     {
       "name": "rename_fields",
