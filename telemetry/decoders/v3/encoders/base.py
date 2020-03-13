@@ -16,9 +16,8 @@ class BaseEncoding:
     content_key = "content"
     keys_key = "keys"
     p_key = "encodingPath"
-    node_key  = "node_id"
+    node_key = "node_id"
     timestamp_key = "timestamp"
-
 
     def __init__(self, data: Dict[Any, Any]):
         self.data = data
@@ -136,7 +135,6 @@ class InternalMetric(BaseEncoding):
             new_data[self.keys_key] = new_key
 
         return JsonTextMetric(new_data)
-
 
     def get_extra_keys(self, extra_keys=None) -> Iterable["InternalMetric"]:
         """
@@ -501,43 +499,47 @@ class MetricTransformationBase(ABC):
         pass
 
     def transform_list(self, generator):
-        '''
+        """
         Takes a generator of metrics and transforms. It keeps the value in case one needs
         to do  "= yield from"
-        '''
-        generagtor_with_return  = Generator(generator)
+        """
+        generagtor_with_return = Generator(generator)
         for metric in generagtor_with_return:
             yield from self.transform(metric)
         return generagtor_with_return.value
 
+
 class FilterMetric(MetricTransformationBase):
-    '''
+    """
     We just filter by encoding path. Other more complex filters can be done,
     but we dont need the now.
-    '''
+    """
+
     def transform(self, metric):
         if metric.path in self.data_per_path:
             return
         yield metric
 
+
 class OptionsFields(Flag):
     NO_OPTION = 0
     LISTS = auto()
-    FIELDS = auto() # a field is another field level.
+    FIELDS = auto()  # a field is another field level.
     HIERARCHIES = LISTS | FIELDS
 
+
 class ContentTransformation(MetricTransformationBase):
-    '''
+    """
     General classes that transform content (do not yield multiple,metrics, only one transformed)
     It first transforms the hierachically fields.
-    '''
+    """
 
     def __init__(self, options, paths):
         self.options = OptionsFields.NO_OPTION
         self.transform_list_elements = True
         for option_str in options:
             option = getattr(OptionsFields, option_str)
-            self.options =  self.options | option
+            self.options = self.options | option
         super().__init__(paths)
 
     def has_node(self, path):
@@ -631,21 +633,19 @@ class ContentTransformation(MetricTransformationBase):
         if new_keys:
             fields = self.transform_content(metric, fields, path, new_keys, key_state)
         return fields
-    
+
     @abstractmethod
     def transform_content(metric, fields, path, new_keys, key_state):
         pass
 
 
 class FieldToString(ContentTransformation):
-
     @staticmethod
     def string_field(value):
         if isinstance(value, str):
             new_value = value
             return new_value
         return json.dumps(value)
-
 
     def transform_content(self, metric, fields, path, new_keys, key_state):
         new_fields = fields.copy()
@@ -657,17 +657,20 @@ class FieldToString(ContentTransformation):
             new_fields[key] = new_value
         return new_fields
 
+
 class FlattenningLists(MetricExceptionBase):
     pass
+
 
 class ExistingNameInFlattening(MetricExceptionBase):
     pass
 
 
 class FlattenFunctions:
-    '''
+    """
     Flatten functions. Choosing inheritance over composition here.
-    '''
+    """
+
     def find_name(self, fields, key, ckey, path) -> str:
         prefix = ""
         if self.keep_naming:
@@ -678,19 +681,28 @@ class FlattenFunctions:
             base_name = ckey
         name = None
         if base_name in fields:
-            self.warning(ExistingNameInFlattening("Base name for flattening exists", {"base": base_name, "path": path, "child_key": ckey}))
+            self.warning(
+                ExistingNameInFlattening(
+                    "Base name for flattening exists",
+                    {"base": base_name, "path": path, "child_key": ckey},
+                )
+            )
             for x in RANGE_NUMERS:
                 candidate = "_".join([base_name, str(x)])
                 if candidate not in fields:
                     break
             else:
-                raise ExistingNameInFlattening("Cound not Find a name for hierarchy", {"path": path, "child_key": ckey})
+                raise ExistingNameInFlattening(
+                    "Cound not Find a name for hierarchy",
+                    {"path": path, "child_key": ckey},
+                )
             # find a name with the structure prefix_name_number, but complaint.
             name = candidate
         else:
             name = base_name
 
         return name
+
 
 class TransformationPipeline(MetricTransformationBase):
     def __init__(self, transformations):
@@ -708,17 +720,20 @@ class TransformationPipeline(MetricTransformationBase):
             gen = trf.transform_list(gen)
         yield from gen
 
+
 class KeysFlattenOverlap(MetricExceptionBase):
     pass
+
 
 class KeysWithDoubleName(MetricExceptionBase):
     pass
 
+
 class FlattenHeaders(MetricTransformationBase, FlattenFunctions):
-    '''
+    """
     Flattens metadata into content of the metric.
     Design decisions:
-    '''
+    """
 
     def __init__(self):
         self.keep_naming = False
@@ -727,51 +742,69 @@ class FlattenHeaders(MetricTransformationBase, FlattenFunctions):
     def add_to_field(self, fields, key, value, path):
         nname = self.find_name(fields, "keys", key, path)
         if nname in fields:
-            raise ExistingNameInFlattening("Find name returned an existing value", {"name": nname, "path": path, "child_key": key})
+            raise ExistingNameInFlattening(
+                "Find name returned an existing value",
+                {"name": nname, "path": path, "child_key": key},
+            )
         fields[nname] = value
-
 
     def transform(self, metric):
         new_fields = {}
         self.flatten_keys(metric.keys, metric.path, new_fields)
-        self.add_to_field(new_fields, metric.timestamp_key, metric.timestamp, metric.path)
+        self.add_to_field(
+            new_fields, metric.timestamp_key, metric.timestamp, metric.path
+        )
         self.add_to_field(new_fields, metric.node_key, metric.node, metric.path)
 
         # now the content
         for key, value in metric.content.items():
             self.add_to_field(new_fields, key, value, metric.path)
 
-        yield  metric.replace(content=new_fields)
-    
+        yield metric.replace(content=new_fields)
+
     def flatten_keys(self, keys, path, new_fields):
         for key, value in keys.items():
             if isinstance(value, list):
                 for svalue in value:
                     self.add_to_field(new_fields, key, value, path)
-                self.warning(KeysWithDoubleName("Keys with the same name", {"name": key, "path": path}))
+                self.warning(
+                    KeysWithDoubleName(
+                        "Keys with the same name", {"name": key, "path": path}
+                    )
+                )
                 continue
             self.add_to_field(new_fields, key, value, path)
 
-class FlattenHierarchies(ContentTransformation, FlattenFunctions):
 
-    def __init__(self, keep_naming=False):
-        super().__init__([], None)
+class InvalidFlatteningPath(MetricExceptionBase):
+    pass
+
+
+class FlattenHierarchies(ContentTransformation, FlattenFunctions):
+    def __init__(self, keep_naming=False, paths=None, options=None):
+        if options == None:
+            # if there are paths, keep empty, if there are not, set all
+            options = []
+            if paths is None:
+                options = ["HIERARCHIES"]
+        if paths is None:
+            paths = CharTrie()
+        super().__init__(options, paths)
         self.keep_naming = keep_naming
         self.transform_list_elements = True
 
-    def has_node(self, path: str):
-        """
-        Checks whether an encoding path is covered by the operation
-        """
-        return True
+    # def has_node(self, path: str): """
+    #    Checks whether an encoding path is covered by the operation
+    #    """
+    #    return True
 
-    def has_key(self, path: str, key, content) -> bool:
-        """
-        Checks whether the operation applies to a field, and returns state that is needed later
-        """
-        if isinstance(content, HIERARCHICAL_TYPES):
-            return (True, path)
-        return (False, path)
+    # def has_key(self, path: str, key, content) -> bool:
+    #    """
+    #    Checks whether the operation applies to a field, and returns state that is needed later
+    #    """
+    #    if isinstance(content, HIERARCHICAL_TYPES):
+    #        return (True, path)
+    #    return (False, path)
 
     def transform_content(self, metric, fields, path, new_keys, key_state):
         new_fields = fields.copy()
@@ -781,21 +814,34 @@ class FlattenHierarchies(ContentTransformation, FlattenFunctions):
             value = new_fields.pop(key)
             kpath = key_state[key]
 
-#           # deal with lists
+            if not isinstance(value, HIERARCHICAL_TYPES):
+                self.warning(
+                    InvalidFlatteningPath(
+                        "Ignoring flattening path, it is not a list or a field",
+                        {"path": kpath},
+                    )
+                )
+                # placing the value back, this should not be the norm.
+                new_fields[key] = value
+                continue
+
+            #           # deal with lists
             if isinstance(value, list):
                 self.warning(FlattenningLists("Flattening lists", {"path": kpath}))
                 nvalue = FieldToString.string_field(value)
                 new_fields[key] = nvalue
                 continue
 
-           # this must be a dict, that should be already flatten 
+            # this must be a dict, that should be already flatten
             for ckey, cvalue in value.items():
                 nname = self.find_name(new_fields, key, ckey, kpath)
                 if nname in new_fields:
-                    raise ExistingNameInFlattening("Find name returned an existing value", {"name": nname, "path": kpath, "child_key": ckey})
+                    raise ExistingNameInFlattening(
+                        "Find name returned an existing value",
+                        {"name": nname, "path": kpath, "child_key": ckey},
+                    )
                 new_fields[nname] = cvalue
         return new_fields
-
 
 
 class CombineContentTransformation(ContentTransformation):
@@ -822,7 +868,7 @@ class CombineContentTransformation(ContentTransformation):
         Checks whether the operation applies to a field
         """
         global_state = {}
-        global_has_key  = False
+        global_has_key = False
         for n, t in enumerate(self.transformations):
             has, state = t.has_key(path, key, value)
             if has:
@@ -841,15 +887,17 @@ class CombineContentTransformation(ContentTransformation):
         for n in sorted(state_per_transformer):
             state = state_per_transformer[n]
             transformation = self.transformations[n]
-            new_fields = transformation.transform_content(metric, new_fields, path, state, state)
+            new_fields = transformation.transform_content(
+                metric, new_fields, path, state, state
+            )
         return new_fields
 
 
 class ExsitingName(MetricExceptionBase):
     pass
 
-class RenameContent(ContentTransformation):
 
+class RenameContent(ContentTransformation):
     def __init__(self, paths):
         super().__init__([], paths)
 
@@ -862,7 +910,11 @@ class RenameContent(ContentTransformation):
                 new_fields.pop(key, None)
                 continue
             if new_key in new_fields:
-                self.warning(ExsitingName("Name already exists in path", {"path": path, "name": new_key}))
+                self.warning(
+                    ExsitingName(
+                        "Name already exists in path", {"path": path, "name": new_key}
+                    )
+                )
                 continue
             value = new_fields.pop(key)
             new_fields[new_key] = value
@@ -871,6 +923,7 @@ class RenameContent(ContentTransformation):
 
 class RKEWrongType(MetricExceptionBase):
     pass
+
 
 class RenameKeys(MetricTransformationBase):
     def transform(self, metric):
@@ -886,7 +939,7 @@ class RenameKeys(MetricTransformationBase):
         # get the info for this path
         path_data = self.data_per_path[metric.path]
         current_keys = {}
-        # we use as a base the info on the metric key. 
+        # we use as a base the info on the metric key.
         for key, value in metric.keys.items():
             if key not in path_data:
                 metric.add_to_flatten(current_keys, key, value)
@@ -898,7 +951,10 @@ class RenameKeys(MetricTransformationBase):
                 continue
             # repeated values, value MUST be a list.
             if not isinstance(value, list):
-                raise RKEWrongType("Key value is not a list but modification is a dict", {"key": key, "path": metric.path})
+                raise RKEWrongType(
+                    "Key value is not a list but modification is a dict",
+                    {"key": key, "path": metric.path},
+                )
             key_values = value
             for n, value in enumerate(key_values):
                 n = str(n)
@@ -911,7 +967,6 @@ class RenameKeys(MetricTransformationBase):
         yield metric.replace(keys=current_keys)
 
 
-
 # from https://stackoverflow.com/questions/34073370/best-way-to-receive-the-return-value-from-a-python-generator
 class Generator:
     def __init__(self, gen):
@@ -919,6 +974,7 @@ class Generator:
 
     def __iter__(self):
         self.value = yield from self.gen
+
 
 class MetricSpliting(MetricTransformationBase):
     """
@@ -948,7 +1004,6 @@ class MetricSpliting(MetricTransformationBase):
     @abstractmethod
     def split(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
         pass
-
 
     def _split(self, metric, fields: Union[Sequence[Field], Field], path: str):
         """
@@ -1000,7 +1055,9 @@ class MetricSpliting(MetricTransformationBase):
         # anything new from the new metric (we ignore the fields_with_children
         if new_keys:
             # we need to split the metric here.
-            new_content, changed = yield from self.split(metric, fields, path, new_keys, key_state)
+            new_content, changed = yield from self.split(
+                metric, fields, path, new_keys, key_state
+            )
             # we return empty.
             return new_content, changed
 
@@ -1085,18 +1142,23 @@ class ExtraKeysTransformation(MetricSpliting):
         yield from self.transform(new_metric)
         return {}, True
 
+
 class NotAList(MetricExceptionBase):
     pass
 
-class SplitLists(MetricSpliting):
 
+class SplitLists(MetricSpliting):
     def split(self, metric, fields, path, new_keys, key_state):
         current_content = fields
         for key in new_keys:
             kpath = key_state[key]
             elements = current_content.pop(key, None)
             if not isinstance(elements, list):
-                self.warning(NotAList("Trying to split an element which is not a list", {"key": key}))
+                self.warning(
+                    NotAList(
+                        "Trying to split an element which is not a list", {"key": key}
+                    )
+                )
                 continue
             for element in elements:
                 new_metric = metric.replace(content=element, path=kpath)
@@ -1107,6 +1169,7 @@ class SplitLists(MetricSpliting):
         # new_data[self.keys_key] = new_keys
         # new_data[self.content_key] = current_content
         # newmetric = InternalMetric(new_data)
+
 
 class CombineTransformationSeries(MetricSpliting):
     """
@@ -1121,7 +1184,6 @@ class CombineTransformationSeries(MetricSpliting):
         self._warning = warning_function
         for trs in self.transformations:
             trs.set_warning_function(warning_function)
-
 
     def has_node(self, path: str) -> bool:
         """
@@ -1150,7 +1212,7 @@ class CombineTransformationSeries(MetricSpliting):
         min_n = min(state_per_transform)
         state = state_per_transform[min_n]
         keys_content = {x: y for x, y in keys.items() if x in state}
-        value  =  yield from self.transform_list(
+        value = yield from self.transform_list(
             self.transformations[min_n].split(metric, fields, path, keys_content, state)
         )
         return value
@@ -1212,9 +1274,6 @@ class MetricTransformDummy(MetricTransform):
 
     def has_key(self, path: str, key, content) -> bool:
         return False, None
-
-
-
 
 
 def TransformationChangeLeaf(MetricSplit):
@@ -1295,6 +1354,7 @@ def CombineTransformationChangeLeafs(CombineTransformationSeries):
         self._warning = warning_function
         for trs in self.transformations:
             trs.set_warning_function(warning_function)
+
 
 class JsonTextMetric(BaseEncoding):
     """

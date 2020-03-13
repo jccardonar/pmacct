@@ -11,7 +11,10 @@ from .encoders.base import (
     FieldToString,
     RenameContent,
     CombineContentTransformation,
-    FlattenHierarchies
+    FlattenHierarchies,
+    TransformationPipeline,
+    FilterMetric,
+    FlattenHeaders
 )
 from pygtrie import CharTrie
 from pprint import pprint
@@ -66,6 +69,8 @@ def get_operations(config):
             operations[key] = config[key]
         if "rename_content" in key:
             operations[key] = config[key]
+        if "filter" in key:
+            operations[key] = config[key]
     leftovers = set(config) - set(operations) - IGNORED_KEYS
     if leftovers:
         raise Exception(f"We have left keys in config: {leftovers}")
@@ -90,8 +95,15 @@ def transformation_factory(key, data):
     if "rename_content" in key:
         paths = get_trie(data, key)
         transformation = RenameContent(paths)
-    if "flattening" in key:
+    if "filter" in key:
+        transformation = FilterMetric(data[key])
+    if "flattening_content" in key:
+        if "paths" in data[key]:
+            paths = get_trie(data[key], "paths")
+            data[key]["paths"] = paths
         transformation = FlattenHierarchies(**data[key])
+    if "flattening_headers" in key:
+        transformation = FlattenHeaders(**data[key])
     if "combine_series" in key:
         config = data[key]
         transformations = []
@@ -110,6 +122,15 @@ def transformation_factory(key, data):
                 raise Exception(f"Ilelgal key {skey} in combine_series")
             transformations.append(stransformation)
         transformation = CombineContentTransformation(transformations)
+    if "pipeline" in key:
+        config = data[key]
+        transformations = []
+        for skey in config:
+            stransformation = transformation_factory(skey, config)
+            if stransformation is None:
+                raise Exception(f"Ilelgal key {skey} in combine_series")
+            transformations.append(stransformation)
+        transformation = TransformationPipeline(transformations)
     return transformation
 
 
@@ -133,9 +154,9 @@ class TestEncodingTransformation:
 
         # process operations
         results = []
-        #operations = get_operations(config)
-        #transformation = None
-        #for operation in operations:
+        # operations = get_operations(config)
+        # transformation = None
+        # for operation in operations:
         #    if "extra_keys" in operation:
         #        # results.extend(metric.get_extra_keys(operations[operation]))
         #        transformation = ExtraKeysTransformation(operations[operation])

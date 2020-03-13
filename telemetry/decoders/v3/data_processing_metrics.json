@@ -15,9 +15,28 @@
             "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name",
             "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/state"
           ],
-	  "filter": {
-        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": true
-	  }
+          "filter": {
+            "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": true
+          },
+          "rename_content": {
+            "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array": "queue",
+            "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred-stats-array": "wred"
+          },
+          "flattening_content": {
+            "keep_naming": false,
+            "paths": [
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/general-stats",
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue/queue-instance-length",
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred/red-label"
+            ]
+          },
+          "flattening_content_1": {
+            "keep_naming": true,
+            "paths": [
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue",
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred"
+            ]
+          }
         }
       },
       "data": {
@@ -125,35 +144,25 @@
           "content": {
             "cac-state": "unknown",
             "counter-validity-bitmask": 4783898624,
-            "general-stats": {
-              "match-data-rate": 0,
-              "pre-policy-matched-bytes": 9433405,
-              "transmit-packets": 80529
-            },
+            "match-data-rate": 0,
+            "pre-policy-matched-bytes": 9433405,
+            "transmit-packets": 80529,
             "queue-descr": "",
-            "queue-stats-array": {
-              "conform-bytes": 9433405,
-              "conform-packets": 80529,
-              "queue-id": 524610,
-              "queue-instance-length": {
-                "unit": "policy-param-unit-packets",
-                "value": 0
-              },
-              "random-drop-bytes": 0,
-              "tail-drop-packets": 0
-            },
-            "wred-stats-array": {
-              "max-threshold-bytes": 0,
-              "max-threshold-packets": 0,
-              "random-drop-bytes": 0,
-              "red-ecn-marked-packets": 0,
-              "red-label": {
-                "value": 0,
-                "wred-type": "red-with-default-min-max"
-              },
-              "red-transmit-bytes": 0,
-              "red-transmit-packets": 0
-            }
+            "queue_conform-bytes": 9433405,
+            "queue_conform-packets": 80529,
+            "queue_queue-id": 524610,
+            "queue_unit": "policy-param-unit-packets",
+            "queue_value": 0,
+            "queue_random-drop-bytes": 0,
+            "queue_tail-drop-packets": 0,
+            "wred_max-threshold-bytes": 0,
+            "wred_max-threshold-packets": 0,
+            "wred_random-drop-bytes": 0,
+            "wred_red-ecn-marked-packets": 0,
+            "wred_value": 0,
+            "wred_wred-type": "red-with-default-min-max",
+            "wred_red-transmit-bytes": 0,
+            "wred_red-transmit-packets": 0
           }
         },
         {
@@ -169,40 +178,30 @@
           "content": {
             "cac-state": "unknown",
             "counter-validity-bitmask": 4783898624,
-            "general-stats": {
-              "match-data-rate": 0,
-              "pre-policy-matched-packets": 0,
-              "total-drop-bytes": 0,
-              "transmit-bytes": 0,
-              "transmit-packets": 0
-            },
+            "match-data-rate": 0,
+            "pre-policy-matched-packets": 0,
+            "total-drop-bytes": 0,
+            "transmit-bytes": 0,
+            "transmit-packets": 0,
             "queue-descr": "",
-            "queue-stats-array": {
-              "conform-bytes": 0,
-              "conform-packets": 0,
-              "conform-rate": 0,
-              "max-threshold-packets": 0,
-              "queue-drop-threshold": 0,
-              "queue-id": 524611,
-              "queue-instance-length": {
-                "unit": "policy-param-unit-packets",
-                "value": 0
-              },
-              "random-drop-bytes": 0,
-              "tail-drop-packets": 0
-            },
-            "wred-stats-array": {
-              "max-threshold-bytes": 0,
-              "max-threshold-packets": 0,
-              "profile-title": "Default WRED Curve",
-              "random-drop-bytes": 0,
-              "red-label": {
-                "value": 0,
-                "wred-type": "red-with-default-min-max"
-              },
-              "red-transmit-bytes": 0,
-              "red-transmit-packets": 0
-            }
+            "queue_conform-bytes": 0,
+            "queue_conform-packets": 0,
+            "queue_conform-rate": 0,
+            "queue_max-threshold-packets": 0,
+            "queue_queue-drop-threshold": 0,
+            "queue_queue-id": 524611,
+            "queue_unit": "policy-param-unit-packets",
+            "queue_value": 0,
+            "queue_random-drop-bytes": 0,
+            "queue_tail-drop-packets": 0,
+            "wred_max-threshold-bytes": 0,
+            "wred_max-threshold-packets": 0,
+            "wred_profile-title": "Default WRED Curve",
+            "wred_random-drop-bytes": 0,
+            "wred_value": 0,
+            "wred_wred-type": "red-with-default-min-max",
+            "wred_red-transmit-bytes": 0,
+            "wred_red-transmit-packets": 0
           }
         }
       ]
@@ -563,6 +562,162 @@
             "b": "b",
             "b_0": 1,
             "b_0_0": 8
+          }
+        }
+      ]
+    },
+    {
+      "name": "selective_flattening_selective_paths",
+      "config": {
+        "flattening_content": {
+          "keep_naming": false,
+          "paths": {
+            "path/here/a/d/p": true,
+            "path/here/a/c": true
+          }
+        },
+        "expected_warning": [
+          "Ignoring flattening path"
+        ]
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "p": {
+                  "o": 0
+                }
+              },
+              {
+                "p": {
+                  "o": 0
+                }
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "a": "test",
+              "d": {
+                "oi": 0,
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "p": {
+                    "o": 0
+                  }
+                },
+                {
+                  "p": {
+                    "o": 0
+                  }
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "selective_flattening_no_lists",
+      "config": {
+        "flattening_content": {
+          "keep_naming": true,
+          "options": [
+            "FIELDS"
+          ]
+        }
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "p": {
+                  "o": 0
+                }
+              },
+              {
+                "p": {
+                  "o": 0
+                }
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a_a": "test",
+            "a_c": 1,
+            "a_d_p_oi": 0,
+            "a_d_f_fo": 3,
+            "a_d_e": 1,
+            "a_d_ba": "c",
+            "a_g": [
+              {
+                "p_o": 0
+              },
+              {
+                "p_o": 0
+              }
+            ],
+            "b": "b"
           }
         }
       ]
