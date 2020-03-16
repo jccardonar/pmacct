@@ -4,12 +4,14 @@ import ujson as json
 from pygtrie import CharTrie
 from enum import Flag, auto
 
+
 # Types
 ValueField = Dict[str, Union[str, float]]
 Field = Dict[str, Union["Field", ValueField]]
 
 
 RANGE_NUMERS = [str(x) for x in range(0, 100)]
+
 
 
 class BaseEncoding:
@@ -507,6 +509,15 @@ class MetricTransformationBase(ABC):
         for metric in generagtor_with_return:
             yield from self.transform(metric)
         return generagtor_with_return.value
+
+class TransformationPerEncodingPath(MetricTransformationBase):
+    '''
+    Applies a transformation per encoding path. Used to quickly filter paths.
+    '''
+    def transform(self, metric):
+        # here, it would be possible to have multiple cases. But that is not the idea.
+        for transformation in self.data_per_path.has_node:
+            yield from transformation.transform(metric)
 
 
 class FilterMetric(MetricTransformationBase):
