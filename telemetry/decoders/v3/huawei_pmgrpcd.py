@@ -86,6 +86,13 @@ class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServic
 def huawei_processing(grpcPeer, new_msg):
     PMGRPCDLOG.debug("Huawei: Received GRPC-Data")
 
+    # dump the raw data
+    if lib_pmgrpcd.OPTIONS.rawdatafile:
+        PMGRPCDLOG.debug("Write rawdatafile: %s" % (lib_pmgrpcd.OPTIONS.rawdatafile))
+        with open(lib_pmgrpcd.OPTIONS.rawdatafile, "a") as rawdatafile:
+            rawdatafile.write(base64.b64encode(new_msg.data).decode())
+            rawdatafile.write("\n")
+
     try:
         telemetry_msg = huawei_telemetry_pb2.Telemetry()
         telemetry_msg.ParseFromString(new_msg.data)
@@ -108,7 +115,6 @@ def huawei_processing(grpcPeer, new_msg):
             "instancing or parsing data failed with huawei_telemetry_pb2.Telemetry"
         )
         raise
-
 
     PMGRPCDLOG.debug("Huawei: Received GPB-Data as JSON")
     # TODO: Do we really need this? it can be expensive 
@@ -170,13 +176,6 @@ def huawei_processing(grpcPeer, new_msg):
             message_dict["collector"].update({"data": message_header_dict.copy()})
             message_dict["collector"]["data"].update(new_row_header_dict)
             message_dict.update(content)
-
-            # dump the raw data
-            if lib_pmgrpcd.OPTIONS.rawdatadumpfile:
-                PMGRPCDLOG.debug("Write rawdatadumpfile: %s" % (lib_pmgrpcd.OPTIONS.rawdatadumpfile))
-                with open(lib_pmgrpcd.OPTIONS.rawdatadumpfile, "a") as rawdatadumpfile:
-                    rawdatadumpfile.write(json.dumps(message_dict, indent=2, sort_keys=True))
-                    rawdatadumpfile.write("\n")
 
             allkeys = parse_dict(content, ret="", level=0)
             PMGRPCDLOG.debug("Huawei: %s: %s" % (proto, allkeys))
