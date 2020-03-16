@@ -13,7 +13,6 @@ Field = Dict[str, Union["Field", ValueField]]
 RANGE_NUMERS = [str(x) for x in range(0, 100)]
 
 
-
 class BaseEncoding:
 
     content_key = "content"
@@ -136,7 +135,6 @@ class InternalMetric(BaseEncoding):
 
         return JsonTextMetric(new_data)
 
-
     def add_keys(self, current_keys, extra_keys):
         new_keys = current_keys.copy()
         for key, value in extra_keys.items():
@@ -195,10 +193,12 @@ class MetricTransformationBase(ABC):
             yield from self.transform(metric)
         return generagtor_with_return.value
 
+
 class TransformationPerEncodingPath(MetricTransformationBase):
-    '''
+    """
     Applies a transformation per encoding path. Used to quickly filter paths.
-    '''
+    """
+
     def transform(self, metric):
         # here, it would be possible to have multiple cases. But that is not the idea.
         for transformation in self.data_per_path.has_node:
@@ -489,19 +489,6 @@ class FlattenHierarchies(ContentTransformation, FlattenFunctions):
         self.keep_naming = keep_naming
         self.transform_list_elements = True
 
-    # def has_node(self, path: str): """
-    #    Checks whether an encoding path is covered by the operation
-    #    """
-    #    return True
-
-    # def has_key(self, path: str, key, content) -> bool:
-    #    """
-    #    Checks whether the operation applies to a field, and returns state that is needed later
-    #    """
-    #    if isinstance(content, HIERARCHICAL_TYPES):
-    #        return (True, path)
-    #    return (False, path)
-
     def transform_content(self, metric, fields, path, new_keys, key_state):
         new_fields = fields.copy()
         # the sorted makes this a bit more deterministic
@@ -778,8 +765,6 @@ class MetricSpliting(MetricTransformationBase):
         return fields, changed
 
 
-
-
 class ExtraKeysTransformation(MetricSpliting):
     def split(self, metric, fields, path, new_keys, key_state):
         current_keys = metric.keys
@@ -787,11 +772,6 @@ class ExtraKeysTransformation(MetricSpliting):
         current_content = fields
         for key in new_keys:
             current_content.pop(key, None)
-        # new_data = self.data.copy()
-        # new_data[self.p_key] = path
-        # new_data[self.keys_key] = new_keys
-        # new_data[self.content_key] = current_content
-        # newmetric = InternalMetric(new_data)
         new_metric = metric.replace(content=current_content, keys=new_keys, path=path)
         # now, we need to apply the change also here
         yield from self.transform(new_metric)
@@ -819,11 +799,6 @@ class SplitLists(MetricSpliting):
                 new_metric = metric.replace(content=element, path=kpath)
                 yield from self.transform(new_metric)
         return current_content, True
-        # new_data = self.data.copy()
-        # new_data[self.p_key] = path
-        # new_data[self.keys_key] = new_keys
-        # new_data[self.content_key] = current_content
-        # newmetric = InternalMetric(new_data)
 
 
 class CombineTransformationSeries(MetricSpliting):
@@ -881,7 +856,6 @@ class MetricTransformDummy(MetricTransformationBase):
     def transform(self, metric):
         self.warning(MetricWarningDummy("Dummy warning", {"df": 2}))
         yield metric
-
 
 
 class JsonTextMetric(BaseEncoding):
