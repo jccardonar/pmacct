@@ -116,6 +116,8 @@ def transformation_factory(key, data):
         transformation = TransformationPipeline(transformations)
     return transformation
 
+raise FailingOnWarning(Exception):
+    pass
 
 class MetricTransformationBase(ABC):
     def __init__(self, data_per_path):
@@ -131,8 +133,12 @@ class MetricTransformationBase(ABC):
         """
         if self._warning is None:
             return
+
         # should we catch a failure here, what to do?
-        self._warning(warning)
+        try:
+            self._warning(warning)
+        except:
+            pass
 
     @abstractmethod
     def transform(self, metric) -> Sequence["InternalMetric"]:
@@ -366,6 +372,7 @@ class TransformationPipeline(MetricTransformationBase):
             trs.set_warning_function(warning_function)
 
     def transform(self, metric):
+        self.warning(MetricExceptionBase("Processing msg", {"path": metric.path}))
         gen = iter([metric])
         for trf in self.transformations:
             gen = trf.transform_list(gen)
