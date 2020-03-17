@@ -8,6 +8,114 @@ from pygtrie import CharTrie
 RANGE_NUMERS = [str(x) for x in range(0, 100)]
 HIERARCHICAL_TYPES = (dict, list)
 
+# TODO: First try to use caching in a trie, since this domites
+# some tests. More work is needed
+# key here was to cache __contains__
+class CacheCharTrie(CharTrie):
+    def __init__(self, *args, **kargs):
+        super().__init__(*args, **kargs)
+        self.cache_node = {}
+        self.cache = {}
+        self.cache_item = {}
+        self.complain = False
+
+    def _get_node(self, key, *args, **kargs):
+        if key in self.cache:
+            return self.cache[key]
+        value = super()._get_node(key, *args, **kargs)
+        self.cache[key] = value
+        return value
+
+    def has_node(self, key):
+        if key in self.cache_node:
+            return self.cache_node[key]
+        value = super().has_node(key)
+        self.cache_node[key] = value
+        return value
+
+    def __contains__(self, key):
+        if key in self.cache_item:
+            return self.cache_item[key]
+        value = super().__contains__(key)
+        self.cache_item[key] = value
+        return value
+
+def get_trie(config, key):
+    paths = config[key]
+    if isinstance(paths, list):
+        extra_keys_trie = CacheCharTrie()
+        extra_keys_trie.update({x: True for x in paths})
+        return extra_keys_trie
+    extra_keys_trie = CacheCharTrie()
+    extra_keys_trie.update(paths)
+    return extra_keys_trie
+
+def transformation_factory(key, data):
+    transformation = None
+    if "extra_keys" in key:
+        paths = get_trie(data, key)
+        transformation = ExtraKeysTransformation(paths)
+    if "split_lists" in key:
+        paths = get_trie(data, key)
+        transformation = SplitLists(paths)
+    if "dummy" in key:
+        transformation = MetricTransformDummy(None)
+    if "rename_keys" in key:
+        transformation = RenameKeys(data[key])
+    if "field_to_str" in key:
+        paths = get_trie(data[key], "paths")
+        transformation = FieldToString(data[key]["options"], paths)
+    if "rename_content" in key:
+        paths = get_trie(data, key)
+        transformation = RenameContent(paths)
+    if "filter" in key:
+        transformation = FilterMetric(data[key])
+    if "flattening_content" in key:
+        if "paths" in data[key]:
+            paths = get_trie(data[key], "paths")
+            data[key]["paths"] = paths
+        transformation = FlattenHierarchies(**data[key])
+    if "flattening_headers" in key:
+        transformation = FlattenHeaders(**data[key])
+    if "trasnformation_per_path" in key:
+        config = data[key]
+        transformations = CharTrie()
+        for path in config:
+            for skey in config[path]:
+                stransformation = transformation_factory(skey, config)
+                if stransformation is None:
+                    raise Exception(f"Ilelgal key {skey} in combine_series")
+                transformations[path] = stransformation
+        transformation = TransformationPerEncodingPath(transformations)
+    if "combine_series" in key:
+        config = data[key]
+        transformations = []
+        for skey in config:
+            stransformation = transformation_factory(skey, config)
+            if stransformation is None:
+                raise Exception(f"Ilelgal key {skey} in combine_series")
+            transformations.append(stransformation)
+        transformation = CombineTransformationSeries(transformations)
+    if "combine_content" in key:
+        config = data[key]
+        transformations = []
+        for skey in config:
+            stransformation = transformation_factory(skey, config)
+            if stransformation is None:
+                raise Exception(f"Ilelgal key {skey} in combine_series")
+            transformations.append(stransformation)
+        transformation = CombineContentTransformation(transformations)
+    if "pipeline" in key:
+        config = data[key]
+        transformations = []
+        for skey in config:
+            stransformation = transformation_factory(skey, config)
+            if stransformation is None:
+                raise Exception(f"Ilelgal key {skey} in combine_series")
+            transformations.append(stransformation)
+        transformation = TransformationPipeline(transformations)
+    return transformation
+
 
 class MetricTransformationBase(ABC):
     def __init__(self, data_per_path):

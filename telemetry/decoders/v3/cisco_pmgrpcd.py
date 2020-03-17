@@ -36,6 +36,16 @@ from debug import DEBUG_LOCK
 if lib_pmgrpcd.OPTIONS.cenctype == 'gpbkv':
     import cisco_telemetry_pb2
 
+def process_cisco_kv(new_msg):
+    """
+    Processes a msg using gpb-kv
+    """
+    telemetry_msg = cisco_telemetry_pb2.Telemetry()
+    telemetry_msg.ParseFromString(new_msg.data)
+    #jsonStrTelemetry = MessageToJson(telemetry_msg)
+    #grpc_message = json.loads(jsonStrTelemetry)
+    grpc_message = MessageToDict(telemetry_msg)
+    return grpc_message
 
 class gRPCMdtDialoutServicer(cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer):
     def __init__(self):
@@ -81,16 +91,6 @@ class gRPCMdtDialoutServicer(cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer)
         return
         yield
 
-def process_cisco_kv(new_msg):
-    """
-    Processes a msg using gpb-kv
-    """
-    telemetry_msg = cisco_telemetry_pb2.Telemetry()
-    telemetry_msg.ParseFromString(new_msg.data)
-    #jsonStrTelemetry = MessageToJson(telemetry_msg)
-    #grpc_message = json.loads(jsonStrTelemetry)
-    grpc_message = MessageToDict(telemetry_msg)
-    return grpc_message
 
 
 def cisco_processing(grpcPeer, new_msg):

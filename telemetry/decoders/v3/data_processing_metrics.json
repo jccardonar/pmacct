@@ -1807,6 +1807,52 @@
         }
       ]
     },
+{
+      "name": "modify_keys_exceptions",
+      "config": {
+        "rename_keys": {
+          "other/path": {
+            "b": {
+              "1": "newbalt"
+            },
+            "c": "newcalt"
+          },
+          "path/here/": {
+            "b": {
+              "1": "newb",
+              "8": "other"
+            },
+            "c": "newc"
+          }
+        },
+        "exception": "Key value is not a list"
+      },
+      "data": {
+        "encodingPath": "path/here/",
+        "keys": {
+          "c": 1,
+          "b": "b",
+          "e": 1
+        },
+        "content": {
+          "anything": 9
+        }
+      },
+      "expected": [
+        {
+          "encodingPath": "path/here/",
+          "keys": {
+            "newc": 1,
+            "b": "b",
+            "newb": "c",
+            "e": 1
+          },
+          "content": {
+            "anything": 9
+          }
+        }
+      ]
+    },
     {
       "name": "modify_keys",
       "config": {

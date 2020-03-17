@@ -1,4 +1,4 @@
-'''
+"""
 The code here attempts to follow the structure from the public schema from cisco, but it could very well vary across platforms. We use https://github.com/cisco/bigmuddy-network-telemetry-proto/blob/master/staging/telemetry.proto as reference.
 
 The next text attempts to describe in words the cisco kv format. Please see the reference above for a better understanding.
@@ -87,12 +87,33 @@ We can export raw (together  with some metadata)
 We can export in json (how to obtain it depends on each encoding)
 We can export in json compress (which is just the json but compressed after)
 We can try to flatten data
-'''
+"""
 
 from .base import BaseEncoding, BaseEncodingException, InternalMetric
 import sys
+
 sys.path.append("..")
 from cisco_pmgrpcd import process_cisco_kv
+
+NON_VALUE_FIELDS = set(["name", "timestamp", "fields"])
+
+
+ONE_OF = set(
+    [
+        "bytesValue",
+        "stringValue",
+        "boolValue",
+        "uint32Value",
+        "uint64Value",
+        "sint32Value",
+        "sint64Value",
+        "doubleValue",
+        "floatValue",
+    ]
+)
+# Not sure what to do with int64 values. We'll keep them int for now.
+INTEGERS = set(["uint32Value", "uint64Value", "sint32Value", "sint64Value"])
+FLOAT = set(["doubleValue", "floatValue"])
 
 
 class CiscoKVFlatten(BaseEncoding):
@@ -117,14 +138,13 @@ class CiscoKVFlatten(BaseEncoding):
         self.extra_keys = extra_keys
         return super().__init__(data)
 
-
     def get_internal(self):
         for sample in self.content:
             keys, content = self.convert_ciscokv_to_dict(sample)
             data = self.data.copy()
             data[self.content_key] = content
             data[self.keys_key] = keys
-            yield  InternalMetric(data)
+            yield InternalMetric(data)
 
     def add_to_flatten(self, flatten_content, key, value):
         if key in flatten_content:
@@ -159,129 +179,6 @@ class CiscoKVFlatten(BaseEncoding):
         content = keys_content.get("content", [])
         return keys, content
 
-
-    HIERARCHICAL_TYPES = (dict, list)
-    def flatten(self, fields, ep):
-        '''
-        It is tempting to have flatten as a generator, but since we have 
-        to go to the end to check for items with children, then 
-        it is just not too much gain.
-        '''
-        flatten = {}
-        others = []
-        for name, value in fields:
-            list_items = {}
-
-            if isinstance(value, self.HIERARCHICAL_TYPES):
-                nep = form_encoding_path(ep, name)
-                flatten_values, others_c = flatten(value, nep)
-                others.extend(others_c)
-                extend_flatten(flatten, flatten_values)
-            else:
-                extend_flatten(flatten, name, value)
-
-        return flatten, others
-
-
-
-
-    def flatten_cisco_fields(self, fields, encoding_path, flatten_array=None):
-        """
-        Takes data and returns one or more flatten jsons.
-        """
-        if flatten_array is None:
-            flatten_array = []
-        # let's take care of the key-content type of cisco
-        if self.is_key_value(fields):
-            yield from self.flatten_key_content(fields, encoding_path, flatten_array)
-        else:
-            # we might have multiple keys, let's just take them one by one
-            for field in fields:
-                yield from self.flatten_cisco_fields(field, encoding_path, flatten_array=flatten_array)
-
-    def flatten_key_content(self, fields, encoding_path, metrics):
-        # get keys and content
-        keys = None
-        content = None
-        for field in fields:
-            if field.get("name", "") == "keys":
-                keys = field
-            elif field.get("name", "") == "content":
-                content = field
-        if keys is None:
-            raise Exception("No keys in field {}".format(fields))
-        if content is None:
-            raise Exception("No content in field {}".format(fields))
-        metric_keys = {}
-
-        # flatten keys
-        for n, key in enumerate(keys["fields"]):
-            key, value = self.simplify_cisco_field(key, encoding_path=encoding_path, key_n=n)
-            metric_keys[key] = value
-        flatten_metrics = []
-        self.flatten_content_fields(content, encoding_path, metric_keys, flatten_metrics, metrics)
-        # now we can create the multiple metrics from a single one, if needed
-        #for content_f in content["fields"]:
-            #if "fields" in content_f and content_f["fields"]:
-            #    breakpoint()
-            #    raise Exception("Not ready")
-            #key, value = simplify_cisco_field(content_f)
-            #flatten_metric[key] = value
-        metrics.extend(combine_keys_content(metric_keys, flatten_metrics))
-        return metrics
-
-    def flatten_content_fields(self, content_f, encoding_path, keys, flatten_metrics, other_metrics, level=None):
-        '''
-        Here we have pure content.
-        '''
-        if level is None:
-            level = []
-        # first we go over elements colleting all "normal" in this hierarchy
-        fields_with_children = []
-        this_encoding_path = form_encoding_path(encoding_path, level)
-        look_for_keys = this_encoding_path in self.extra_keys
-        flatten_metric = {}
-        for field in content_f["fields"]:
-            if "fields" in field and field["fields"]:
-                fields_with_children.append(field)
-                continue
-            name, value = self.simplify_cisco_field(field, encoding_path=encoding_path, levels=level)
-            if look_for_keys:
-                if name in self.extra_keys[this_encoding_path]:
-                    keys[name] = value
-                else:
-                    flatten_metric[name] = value
-            else:
-                flatten_metric[name] = value
-
-        children_flatten_metrics = []
-        if fields_with_children:
-            breakpoint()
-            for field in fields_with_children:
-                name = field.get("name", None)
-                if name is None:
-                    name = "Unknown"
-                new_levels = level + [name]
-                if add_leaf(this_encoding_path, name) in self.extra_keys:
-                    raise Exception("Not ready")
-                    new_keys = dict(keys)
-                    child_flatten_content = []
-                    self.flatten_content_fields(field, this_encoding_path, new_keys, child_flatten_content, other_metrics)
-                    # now gett the flatten value and add it
-                    new_metric = combine_keys_content(new_keys, child_flatten_content)
-                    other_metrics.append(new_metric)
-                else:
-                    self.flatten_content_fields(field, encoding_path, keys, children_flatten_metrics, other_metrics, new_levels)
-                    # our metrics are the ones in chilren_flatten_metrics together with the ones in this hierarchy
-        if children_flatten_metrics:
-            for children_metric in children_flatten_metrics:
-                this_metric = dict(flatten_metric)
-                this_metric.update(children_metric)
-                flatten_metrics.append(this_metric)
-        else:
-            flatten_metrics.append(flatten_metric)
-
-
     @staticmethod
     def is_key_value(fields) -> bool:
         """
@@ -292,7 +189,7 @@ class CiscoKVFlatten(BaseEncoding):
         ) == set(["keys", "content"])
 
     def simplify_cisco_field(self, field, encoding_path=None, levels=None, key_n=None):
-        # find the name, this becomes more of a problem when the mapping is complicated 
+        # find the name, this becomes more of a problem when the mapping is complicated
         name = None
         if encoding_path in self.names_data:
             if key_n is not None:
@@ -310,9 +207,9 @@ class CiscoKVFlatten(BaseEncoding):
 
     @staticmethod
     def cast_value(field):
-        '''
+        """
         Obtains a value from a TelemetryField. 
-        '''
+        """
         value = None
         found = False
         found_attr = None
@@ -343,64 +240,3 @@ class CiscoKVFlatten(BaseEncoding):
             pass
 
         return value
-
-NON_VALUE_FIELDS = set(["name", "timestamp", "fields"])
-
-def create_topic(path):
-    replacesments = set([':', '/'])
-    rpath = path
-    for ch in replacesments:
-        rpath = rpath.replace(ch, ".")
-    return rpath
-
-def form_encoding_path(encoding_path, levels):
-    if not levels:
-        return encoding_path
-    if encoding_path[-1] == "/":
-        encoding_path = encoding_path[:-1]
-    return '/'.join([encoding_path, '/'.join(levels)])
-
-def add_leaf(encoding_path, name):
-    if encoding_path[-1] == "/":
-        encoding_path = encoding_path[:-1]
-    return '/'.join([encoding_path, name])
-
-def combine_keys_content(keys, content):
-    # keys are a dict, content is a dict -> list of dicts
-    combined = []
-    for content_metric  in content:
-        metric = dict(keys)
-        metric.update(content_metric)
-        combined.append(metric)
-    return combined
-
-    #for comb in itertools.product(*content.values()):
-    #    metric = dict(keys)
-    #    for subhierarchy in comb:
-    #        metric.update(subhierarchy)
-    #    yield metric
-
-    #combined = {}
-    #combined.update(keys)
-    #combined.update(content)
-    #return combined
-
-
-ONE_OF = set(
-    [
-        "bytesValue",
-        "stringValue",
-        "boolValue",
-        "uint32Value",
-        "uint64Value",
-        "sint32Value",
-        "sint64Value",
-        "doubleValue",
-        "floatValue",
-    ]
-)
-# Not sure what to do with int64 values. We'll keep them int for now.
-INTEGERS = set(["uint32Value", "uint64Value", "sint32Value", "sint64Value"])
-FLOAT = set(["doubleValue", "floatValue"])
-
-
