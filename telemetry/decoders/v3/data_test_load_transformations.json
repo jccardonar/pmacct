@@ -1,0 +1,72 @@
+{
+  "pipeline": {
+    "rename_keys": {
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": {
+        "interface-name": {
+          "1": "member-interface"
+        }
+      }
+    },
+    "extra_keys": [
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name",
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/state"
+    ],
+    "filter": {
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": true
+    },
+    "rename_content": {
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array": "queue",
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred-stats-array": "wred"
+    },
+    "flattening_content": {
+      "keep_naming": false,
+      "paths": [
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/general-stats",
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue/queue-instance-length",
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred/red-label"
+      ]
+    },
+    "flattening_content_1": {
+      "keep_naming": true,
+      "paths": [
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue",
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred"
+      ]
+    }
+  },
+  "pipeline2": {
+    "rename_keys": {
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": {
+        "interface-name": {
+          "1": "member-interface"
+        }
+      }
+    },
+    "extra_keys": [
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name",
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/state"
+    ],
+    "filter": {
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": true
+    },
+    "rename_content": {
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array": "queue",
+      "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred-stats-array": "wred"
+    },
+    "flattening_content": {
+      "keep_naming": false,
+      "paths": [
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/general-stats",
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue/queue-instance-length",
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred/red-label"
+      ]
+    },
+    "flattening_content_1": {
+      "keep_naming": true,
+      "paths": [
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue",
+        "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred"
+      ]
+    }
+  }
+}

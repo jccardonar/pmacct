@@ -92,8 +92,9 @@ We can try to flatten data
 from .base import BaseEncoding, BaseEncodingException, InternalMetric
 import sys
 
-sys.path.append("..")
-from cisco_pmgrpcd import process_cisco_kv
+# TODO: Fix this relative import
+#sys.path.append("..")
+#from cisco_pmgrpcd import process_cisco_kv
 
 NON_VALUE_FIELDS = set(["name", "timestamp", "fields"])
 
@@ -115,6 +116,17 @@ ONE_OF = set(
 INTEGERS = set(["uint32Value", "uint64Value", "sint32Value", "sint64Value"])
 FLOAT = set(["doubleValue", "floatValue"])
 
+# TODO this is repeated from code within, but it was creating cycles and importing was ugly. Fix.
+def process_cisco_kv(new_msg):
+    """
+    Processes a msg using gpb-kv
+    """
+    telemetry_msg = cisco_telemetry_pb2.Telemetry()
+    telemetry_msg.ParseFromString(new_msg.data)
+    #jsonStrTelemetry = MessageToJson(telemetry_msg)
+    #grpc_message = json.loads(jsonStrTelemetry)
+    grpc_message = MessageToDict(telemetry_msg)
+    return grpc_message
 
 class CiscoKVFlatten(BaseEncoding):
     p_key = "encodingPath"
@@ -128,6 +140,19 @@ class CiscoKVFlatten(BaseEncoding):
                 data[cls.content_key] = data["dataGpbkv"]
             data.pop("dataGpbkv", None)
         return cls(data, *args, **kargs)
+
+    @classmethod
+    def build_from_dcit(cls, content):
+        data = content
+        if cls.content_key not in data:
+            data[cls.content_key] = {}
+            if "dataGpbkv" in data and data["dataGpbkv"]:
+                data[cls.content_key] = data["dataGpbkv"]
+            data.pop("dataGpbkv", None)
+        if cls.p_key not in data:
+            data[cls.p_key] = data["encoding_path"]
+        return cls(data)
+
 
     def __init__(self, data, names_data=None, extra_keys=None):
         if names_data is None:

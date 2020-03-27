@@ -1,7 +1,7 @@
 import pytest
 import json
 from encoders.base import InternalMetric
-from transformations import transformation_factory, MetricExceptionBase
+from transformations import transformation_factory, MetricExceptionBase, load_transformtions_from_file
 from pprint import pprint
 
 FILE_TESTS = "data_processing_metrics.json"
@@ -86,3 +86,9 @@ class TestEncodingTransformation:
         gotten_data = [x.data for x in results]
         sorted_gottan_data = sort_data(gotten_data)
         assert sorted_expected == sorted_gottan_data
+
+    def test_load_transfomations_from_file(self):
+        transformations = load_transformtions_from_file("data_test_load_transformations.json")
+        assert len(transformations) == 2
+
+

@@ -481,6 +481,18 @@ def main():
         help="Name of the file to import. If set, we will ignore the rest of the importers.",
     )
 
+    parser.add_option(
+        "--file_transformations",
+        dest="file_transformations",
+        help="Json file detailing the transformations to execute.",
+    )
+
+    parser.add_option(
+        "--file_topic_per_encoding_path",
+        dest="file_topic_per_encoding_path",
+        help="Json file indentifing the topic per encoding path.",
+    )
+
     (lib_pmgrpcd.OPTIONS, args) = parser.parse_args()
     missing_required = parser.missing_required(lib_pmgrpcd.OPTIONS)
     if missing_required:

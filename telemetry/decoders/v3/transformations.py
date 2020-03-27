@@ -116,7 +116,21 @@ def transformation_factory(key, data):
         transformation = TransformationPipeline(transformations)
     return transformation
 
-raise FailingOnWarning(Exception):
+def load_transformtions_from_file(json_file):
+    '''
+    Loads a single transformation per file. If more than one is defined, we just take the first
+    '''
+    with open(json_file) as fh:
+        objects = json.load(fh)
+    transformations = []
+    for key in objects:
+        this_transformation = transformation_factory(key, objects)
+        transformations.append(this_transformation)
+    return transformations
+
+
+
+class FailingOnWarning(Exception):
     pass
 
 class MetricTransformationBase(ABC):
@@ -372,7 +386,6 @@ class TransformationPipeline(MetricTransformationBase):
             trs.set_warning_function(warning_function)
 
     def transform(self, metric):
-        self.warning(MetricExceptionBase("Processing msg", {"path": metric.path}))
         gen = iter([metric])
         for trf in self.transformations:
             gen = trf.transform_list(gen)

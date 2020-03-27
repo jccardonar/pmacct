@@ -27,16 +27,25 @@ import export_pmgrpcd
 import lib_pmgrpcd
 from zmq_modules.zmq_exporter import ZmqExporter
 from kafka_modules.kafka_avro_exporter import KafkaAvroExporter
-from kafka_modules.kafka_simple_exporter import KafkaExporter
+from kafka_modules.kafka_simple_exporter import KafkaExporter, load_topics_file
 from file_modules.file_producer import FileExporter
 from lib_pmgrpcd import PMGRPCDLOG
+from transformations import load_transformtions_from_file
+
 
 def configure(config=None):
-    '''
+    """
     Setup all exporters
-    '''
+    """
     if config is None:
         config = lib_pmgrpcd.OPTIONS
+
+    # Check for transfomrations
+    if config.file_transformations:
+        transformations = load_transformtions_from_file(config.file_transformations)
+        if len(transformations) > 1:
+            raise Exception("We only accept a single transformation right now")
+        export_pmgrpcd.TRANSFORMATION = transformations[0]
 
     # Add the exporters
 
@@ -55,9 +64,11 @@ def configure(config=None):
             raise Exception(f"Kafka servers  must be valid, got {config.bsservers}")
         if config.topic is None:
             raise Exception(f"Kafka topic  must be valid, got {config.topic}")
-        exporter = KafkaExporter(config.bsservers, config.topic)
+        topic_per_encoding_path = {}
+        if config.file_topic_per_encoding_path is not None:
+            topic_per_encoding_path = load_topics_file(config.file_topic_per_encoding_path)
+        exporter = KafkaExporter(config.bsservers, config.topic, topic_per_encoding_path)
         export_pmgrpcd.EXPORTERS["kafka"] = exporter
     if config.file_exporter_file is not None:
         exporter = FileExporter(config.file_exporter_file)
         export_pmgrpcd.EXPORTERS["file"] = exporter
-

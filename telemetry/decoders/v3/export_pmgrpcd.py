@@ -30,6 +30,8 @@ import lib_pmgrpcd
 import sys
 import ujson as json
 from abc import ABC, abstractmethod
+from debug import DEBUG_LOCK
+from encoders.cisco_kv import CiscoKVFlatten
 
 jsonmap = {}
 avscmap = {}
@@ -37,14 +39,14 @@ avscmap = {}
 
 example_dict = {}
 
+EXPORTERS = {}
+TRANSFORMATION = None
 
 class Exporter(ABC):
     @abstractmethod
     def process_metric(self, metric):
         pass
 
-
-EXPORTERS = {}
 
 
 def export_metrics(datajsonstring):
@@ -103,10 +105,12 @@ def FinalizeTelemetryData(dictTelemetryData):
 
     # Going over the mitigation library, if needed.
     # TODO: Simplify the next part
+    dictTelemetryData_beforeencoding = None
     if lib_pmgrpcd.OPTIONS.mitigation:
         from mitigation import mod_all_json_data
         try:
             dictTelemetryData_mod = mod_all_json_data(dictTelemetryData_mod)
+            dictTelemetryData_beforeencoding = dictTelemetryData_mod
             jsonTelemetryData = json.dumps(
                 dictTelemetryData_mod, indent=2, sort_keys=True
             )
@@ -114,12 +118,28 @@ def FinalizeTelemetryData(dictTelemetryData):
             PMGRPCDLOG.info("ERROR: mod_all_json_data raised a error:\n%s")
             PMGRPCDLOG.info("ERROR: %s" % (e))
             dictTelemetryData_mod = dictTelemetryData
+            dictTelemetryData_beforeencoding = dictTelemetryData
             jsonTelemetryData = json.dumps(dictTelemetryData, indent=2, sort_keys=True)
     else:
         dictTelemetryData_mod = dictTelemetryData
+        dictTelemetryData_beforeencoding = dictTelemetryData
         jsonTelemetryData = json.dumps(dictTelemetryData, indent=2, sort_keys=True)
 
     PMGRPCDLOG.debug("After mitigation: %s" % (jsonTelemetryData))
+
+    # Check if we need to transform. This will change later
+    breakpoint() if DEBUG_LOCK.acquire() else None
+    if TRANSFORMATION and dictTelemetryData_beforeencoding and "dataGpbkv" in dictTelemetryData_beforeencoding.get("collector", {}).get("data", {}):
+        # we just transform for kv
+        metric = CiscoKVFlatten.build_from_dcit(dictTelemetryData_beforeencoding["collector"]["data"])
+        internals = list(metric.get_internal())
+        for internal in internals:
+            for new_metric in TRANSFORMATION.transform(internal):
+                data = new_metric.data
+                data["dataGpbkv"] = new_metric.content
+                export_metrics(json.dumps({"collector": {"data":data}}))
+        return jsonTelemetryData
+        
 
     if lib_pmgrpcd.OPTIONS.examplepath and lib_pmgrpcd.OPTIONS.example:
         examples(dictTelemetryData_mod, jsonTelemetryData)
@@ -129,6 +149,8 @@ def FinalizeTelemetryData(dictTelemetryData):
         with open(lib_pmgrpcd.OPTIONS.jsondatadumpfile, "a") as jsondatadumpfile:
             jsondatadumpfile.write(jsonTelemetryData)
             jsondatadumpfile.write("\n")
+
+
 
     # Filter only config.
     export = True
@@ -144,6 +166,7 @@ def FinalizeTelemetryData(dictTelemetryData):
                 in dictTelemetryData_mod["collector"]["data"]["encoding_path"]
             ):
                 export = True
+
 
     if export:
         export_metrics(jsonTelemetryData)
