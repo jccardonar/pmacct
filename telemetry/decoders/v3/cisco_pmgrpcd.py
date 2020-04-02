@@ -157,6 +157,7 @@ def cisco_processing(grpcPeer, new_msg):
         else:
             elem = 0
             messages = {}
+    message_header_dict["path"] = path
 
     PMGRPCDLOG.info(
         "EPOCH=%-10s NIP=%-15s NID=%-20s VEN=%-7s PT=%-22s ET=%-12s ELEM=%s",
@@ -193,7 +194,6 @@ def cisco_processing(grpcPeer, new_msg):
 
         # allkeys = parse_dict(listelem, ret='', level=0)
         # PMGRPCDLOG.info("Cisco: %s: %s" % (proto, allkeys))
-
         try:
             returned = FinalizeTelemetryData(message_dict)
         except Exception as e:

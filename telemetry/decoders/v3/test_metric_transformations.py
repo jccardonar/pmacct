@@ -3,6 +3,7 @@ import json
 from encoders.base import InternalMetric
 from transformations import transformation_factory, MetricExceptionBase, load_transformtions_from_file
 from pprint import pprint
+import copy
 
 FILE_TESTS = "data_processing_metrics.json"
 
@@ -39,6 +40,7 @@ class TestEncodingTransformation:
     def test_transformations(self, capsys, n, name):
         config, data, expected = TESTS[(n, name)]
         sorted_expected = sort_data(expected)
+        original_data = copy.deepcopy(data)
         metric = InternalMetric(data)
 
         # process operations
@@ -86,6 +88,9 @@ class TestEncodingTransformation:
         gotten_data = [x.data for x in results]
         sorted_gottan_data = sort_data(gotten_data)
         assert sorted_expected == sorted_gottan_data
+
+        #now, the original data MUST remain the same
+        assert data == original_data
 
     def test_load_transfomations_from_file(self):
         transformations = load_transformtions_from_file("data_test_load_transformations.json")

@@ -23,49 +23,48 @@
 #   Thomas Graf <thomas.graf@swisscom.com>
 #   Paolo Lucente <paolo@pmacct.net>
 #
-from confluent_kafka import Producer
+from cisco_generator  import CiscoDialOutClient
+from cisco_grpc_dialout_pb2  import MdtDialoutArgs
+from utils import generate_content_from_raw
 from optparse import OptionParser
+
+DEFAULT_FILE = "cisco_dump"
+DEFAULT_CONNECTION = "127.0.0.1:6000"
 
 parser = OptionParser()
 parser.add_option(
-    "-t",
-    "--topic",
-    #default=str(DEFAULT_TOPIC),
-    dest="topic",
-    help="Topic to listen",
+    "-f",
+    "--file",
+    default=str(DEFAULT_FILE),
+    dest="file",
+    help="File with raw data",
 )
 parser.add_option(
-    "-s",
-    "--servers",
-    #default=str(DEFAULT_SERVER),
-    dest="servers",
-    help="Kafka servers",
+    "-c",
+    "--connection",
+    default=str(DEFAULT_CONNECTION),
+    help="IP (socket address) of the collector",
 )
 
 (options, _) = parser.parse_args()
 
 
-p = Producer({"bootstrap.servers": options.servers})
+cisco_client = CiscoDialOutClient(options.connection)
+def generate_data(data_generator):
+    for data in data_generator:
+        yield MdtDialoutArgs(ReqId=1, data=data)
+
+cisco_client.send_data(generate_data(generate_content_from_raw(options.file)))
+
+# check status
+while not cisco_client.rcv.done():
+    continue
+try:
+    result = cisco_client.rcv.result()
+except Exception as e:
+    print("Generation failed with error ", e)
 
 
-def delivery_report(err, msg):
-    """ Called once for each message produced to indicate delivery result.
-        Triggered by poll() or flush(). """
-    if err is not None:
-        print("Message delivery failed: {}".format(err))
-    else:
-        print("Message delivered to {} [{}]".format(msg.topic(), msg.partition()))
 
 
-for data in ["test"]:
-    # Trigger any available delivery report callbacks from previous produce() calls
-    p.poll(0)
 
-    # Asynchronously produce a message, the delivery report callback
-    # will be triggered from poll() above, or flush() below, when the message has
-    # been successfully delivered or failed permanently.
-    p.produce(options.topic, data.encode("utf-8"), callback=delivery_report)
-
-# Wait for any outstanding messages to be delivered and delivery report
-# callbacks to be triggered.
-p.flush()

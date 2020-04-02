@@ -27,20 +27,18 @@ from confluent_kafka import Consumer, KafkaError
 import sys
 from optparse import OptionParser
 
-DEFAULT_TOPIC = "daisy.test.device-avro-raw"
-DEFAULT_SERVER = "kafka.sbd.corproot.net:9093"
 parser = OptionParser()
 parser.add_option(
     "-t",
-    "--topic",,
-    default=str(DEFAULT_TOPIC),
+    "--topic",
+    #default=str(DEFAULT_TOPIC),
     dest="topic",
     help="Topic to listen",
 )
 parser.add_option(
     "-s",
-    "--servers",,
-    default=str(DEFAULT_SERVER),
+    "--servers",
+    #default=str(DEFAULT_SERVER),
     dest="servers",
     help="Kafka servers",
 )
@@ -56,6 +54,7 @@ c = Consumer({
 c.subscribe([options.topic])
 #c.subscribe(['Cisco-IOS-XR-qos-ma-oper.qos.nodes.node.policy-map.interface-table.interface.member-interfaces.member-interface.output.service-policy-names.service-policy-instance.statistics'])
 
+print("waiting for packets")
 while True:
     msg = c.poll(1.0)
 

@@ -30,7 +30,7 @@ import lib_pmgrpcd
 import sys
 import ujson as json
 from abc import ABC, abstractmethod
-from debug import DEBUG_LOCK
+from debug import get_lock
 from encoders.cisco_kv import CiscoKVFlatten
 
 jsonmap = {}
@@ -128,18 +128,25 @@ def FinalizeTelemetryData(dictTelemetryData):
     PMGRPCDLOG.debug("After mitigation: %s" % (jsonTelemetryData))
 
     # Check if we need to transform. This will change later
-    breakpoint() if DEBUG_LOCK.acquire() else None
+    path = dictTelemetryData_beforeencoding["collector"]["data"]["path"]
+    actual_data  = dictTelemetryData_beforeencoding.get(path, {})
     if TRANSFORMATION and dictTelemetryData_beforeencoding and "dataGpbkv" in dictTelemetryData_beforeencoding.get("collector", {}).get("data", {}):
+        data = dictTelemetryData_beforeencoding["collector"]["data"].copy()
+        data["dataGpbkv"] = [{"fields": actual_data}]
         # we just transform for kv
-        metric = CiscoKVFlatten.build_from_dcit(dictTelemetryData_beforeencoding["collector"]["data"])
+        metric = CiscoKVFlatten.build_from_dcit(data)
         internals = list(metric.get_internal())
+
         for internal in internals:
             for new_metric in TRANSFORMATION.transform(internal):
+                print(new_metric.keys)
                 data = new_metric.data
                 data["dataGpbkv"] = new_metric.content
                 export_metrics(json.dumps({"collector": {"data":data}}))
+        #breakpoint() if get_lock() else None
         return jsonTelemetryData
-        
+    #breakpoint() if get_lock() else None
+
 
     if lib_pmgrpcd.OPTIONS.examplepath and lib_pmgrpcd.OPTIONS.example:
         examples(dictTelemetryData_mod, jsonTelemetryData)
@@ -149,7 +156,6 @@ def FinalizeTelemetryData(dictTelemetryData):
         with open(lib_pmgrpcd.OPTIONS.jsondatadumpfile, "a") as jsondatadumpfile:
             jsondatadumpfile.write(jsonTelemetryData)
             jsondatadumpfile.write("\n")
-
 
 
     # Filter only config.

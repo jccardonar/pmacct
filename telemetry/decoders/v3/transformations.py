@@ -79,14 +79,18 @@ def transformation_factory(key, data):
         transformation = FlattenHeaders(**data[key])
     if "trasnformation_per_path" in key:
         config = data[key]
-        transformations = CharTrie()
+        transformations = {}
+        default = None
         for path in config:
             for skey in config[path]:
-                stransformation = transformation_factory(skey, config)
+                stransformation = transformation_factory(skey, config[path])
                 if stransformation is None:
                     raise Exception(f"Ilelgal key {skey} in combine_series")
+            if path == "default":
+                default = stransformation
+            else:
                 transformations[path] = stransformation
-        transformation = TransformationPerEncodingPath(transformations)
+        transformation = TransformationPerEncodingPath(transformations, default)
     if "combine_series" in key:
         config = data[key]
         transformations = []
@@ -173,10 +177,15 @@ class TransformationPerEncodingPath(MetricTransformationBase):
     """
     Applies a transformation per encoding path. Used to quickly filter paths.
     """
+    def __init__(self, transformation_per_path, default):
+        self.transformation_per_path = transformation_per_path
+        self.default = default
+        super().__init__(None)
 
     def transform(self, metric):
         # here, it would be possible to have multiple cases. But that is not the idea.
-        for transformation in self.data_per_path.has_node:
+        transformation = self.transformation_per_path.get(metric.path, self.default)
+        if transformation:
             yield from transformation.transform(metric)
 
 
