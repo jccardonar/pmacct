@@ -31,7 +31,7 @@ import lib_pmgrpcd
 import time
 from export_pmgrpcd import FinalizeTelemetryData
 import base64
-from debug import DEBUG_LOCK
+from debug import get_lock
 
 if lib_pmgrpcd.OPTIONS.cenctype == 'gpbkv':
     import cisco_telemetry_pb2
@@ -73,6 +73,7 @@ class gRPCMdtDialoutServicer(cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer)
 
         PMGRPCDLOG.debug("Cisco connection info: %s" % jsonTelemetryNode)
         for new_msg in msg_iterator:
+            #breakpoint() if get_lock() else None
             PMGRPCDLOG.debug("Cisco new_msg iteration message")
 
             # filter msgs that do not match the IP option if enabled.
@@ -149,7 +150,12 @@ def cisco_processing(grpcPeer, new_msg):
             "subscriptionIdStr"
         )
 
-        (proto, path) = message_header_dict["encoding_path"].split(":")
+        full_ecoding_path = message_header_dict["encoding_path"]
+        if ":" in full_ecoding_path:
+            (proto, path) = message_header_dict["encoding_path"].split(":")
+        else:
+            proto = None
+            path = full_ecoding_path
         (node_id_str) = message_header_dict["node_id_str"]
         if "dataGpbkv" in grpc_message:
             elem = len(grpc_message["dataGpbkv"])

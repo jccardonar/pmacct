@@ -98,6 +98,11 @@ import sys
 
 NON_VALUE_FIELDS = set(["name", "timestamp", "fields"])
 
+class CiscoGPBException(BaseEncodingException):
+    pass
+
+class EmptyValue(CiscoGPBException):
+    pass
 
 ONE_OF = set(
     [
@@ -194,7 +199,11 @@ class CiscoKVFlatten(BaseEncoding):
                     name = "Unknown"
                 value = self.convert_telemetryfield_to_dict(field)
             else:
-                name, value = self.simplify_cisco_field(field)
+                try:
+                    name, value = self.simplify_cisco_field(field)
+                except EmptyValue as e:
+                    # TODO: Should we log this?
+                    continue
             self.add_to_flatten(flatten_content, name, value)
         return flatten_content
 
@@ -226,7 +235,10 @@ class CiscoKVFlatten(BaseEncoding):
             # problem, log
             name = field["name"]
 
-        value = self.cast_value(field)
+        try:
+            value = self.cast_value(field)
+        except EmptyValue:
+            raise
 
         return name, value
 
@@ -248,7 +260,7 @@ class CiscoKVFlatten(BaseEncoding):
                 break
 
         if not found:
-            raise Exception("We could not find a way of simplifying {}".format(field))
+            raise EmptyValue("We could not find a way of simplifying {}".format(field))
 
         # try to cast value.
         casting = None

@@ -466,6 +466,7 @@ def main():
         "-s",
         "--kafkasimple",
         dest="kafkasimple",
+        action="store_true",
         help="Boolean if kafkasimple should be enabled.",
     )
 

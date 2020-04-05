@@ -50,12 +50,15 @@ class Exporter(ABC):
 
 
 def export_metrics(datajsonstring):
+    #breakpoint() if get_lock() else None
+   
     for exporter in EXPORTERS:
         try:
             EXPORTERS[exporter].process_metric(datajsonstring)
         except Exception as e:
             PMGRPCDLOG.debug("Error processing packet on exporter %s. Error was %s", exporter, e)
             raise
+        #breakpoint() if get_lock() else None
 
 
 def examples(dictTelemetryData_mod, jsonTelemetryData):
@@ -128,8 +131,14 @@ def FinalizeTelemetryData(dictTelemetryData):
     PMGRPCDLOG.debug("After mitigation: %s" % (jsonTelemetryData))
 
     # Check if we need to transform. This will change later
+    #breakpoint() if get_lock() else None
     path = dictTelemetryData_beforeencoding["collector"]["data"]["path"]
     actual_data  = dictTelemetryData_beforeencoding.get(path, {})
+    #if path == "sys/intf":
+    #    return
+    print(path)
+    #breakpoint() if get_lock() else None
+
     if TRANSFORMATION and dictTelemetryData_beforeencoding and "dataGpbkv" in dictTelemetryData_beforeencoding.get("collector", {}).get("data", {}):
         data = dictTelemetryData_beforeencoding["collector"]["data"].copy()
         data["dataGpbkv"] = [{"fields": actual_data}]
@@ -137,6 +146,7 @@ def FinalizeTelemetryData(dictTelemetryData):
         metric = CiscoKVFlatten.build_from_dcit(data)
         internals = list(metric.get_internal())
 
+        #breakpoint() if get_lock() else None
         for internal in internals:
             for new_metric in TRANSFORMATION.transform(internal):
                 print(new_metric.keys)

@@ -187,6 +187,8 @@ class TransformationPerEncodingPath(MetricTransformationBase):
         transformation = self.transformation_per_path.get(metric.path, self.default)
         if transformation:
             yield from transformation.transform(metric)
+        else:
+            yield metric
 
 
 class FilterMetric(MetricTransformationBase):
