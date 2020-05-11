@@ -25,7 +25,6 @@
 #
 import export_pmgrpcd
 import lib_pmgrpcd
-from zmq_modules.zmq_exporter import ZmqExporter
 from kafka_modules.kafka_avro_exporter import KafkaAvroExporter
 from kafka_modules.kafka_simple_exporter import KafkaExporter, load_topics_file
 from file_modules.file_producer import FileExporter
@@ -48,10 +47,6 @@ def configure(config=None):
         export_pmgrpcd.TRANSFORMATION = transformations[0]
 
     # Add the exporters
-
-    if config.zmq:
-        zmq_exporter = ZmqExporter()
-        export_pmgrpcd.EXPORTERS["zmq"] = zmq_exporter
     if config.kafkaavro:
         if config.bsservers is None:
             raise Exception(f"Kafka servers  must be valid, got {config.bsservers}")

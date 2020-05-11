@@ -28,10 +28,12 @@ import time
 from lib_pmgrpcd import PMGRPCDLOG
 import lib_pmgrpcd
 import sys
+# TODO: Got a sefault with ujson and with rapidjson. Evaluate why
 import ujson as json
+#import json as json_l
 from abc import ABC, abstractmethod
 from debug import get_lock
-from encoders.cisco_kv import CiscoKVFlatten
+from encoders.cisco_kv import CiscoKVFlatten, NXEncoder
 
 jsonmap = {}
 avscmap = {}
@@ -126,7 +128,14 @@ def FinalizeTelemetryData(dictTelemetryData):
     else:
         dictTelemetryData_mod = dictTelemetryData
         dictTelemetryData_beforeencoding = dictTelemetryData
-        jsonTelemetryData = json.dumps(dictTelemetryData, indent=2, sort_keys=True)
+        # TODO: issue with seg fault seesm to be here, and the reason seems to be that indent
+        #print("here", dictTelemetryData_beforeencoding["collector"]["data"]["path"])
+        #if dictTelemetryData_beforeencoding["collector"]["data"]["path"] == "sys/ipqos":
+        #    json.dump(dictTelemetryData, open("seg_fault.json", "w"), sort_keys=True)
+
+        jsonTelemetryData = json.dumps(dictTelemetryData, sort_keys=True)
+        #jsonTelemetryData = json_l.dumps(dictTelemetryData, indent=2, sort_keys=True)
+        #jsonTelemetryData = json.dumps(dictTelemetryData, sort_keys=True)
 
     PMGRPCDLOG.debug("After mitigation: %s" % (jsonTelemetryData))
 
@@ -136,8 +145,9 @@ def FinalizeTelemetryData(dictTelemetryData):
     actual_data  = dictTelemetryData_beforeencoding.get(path, {})
     #if path == "sys/intf":
     #    return
-    print(path)
     #breakpoint() if get_lock() else None
+
+
 
     if TRANSFORMATION and dictTelemetryData_beforeencoding and "dataGpbkv" in dictTelemetryData_beforeencoding.get("collector", {}).get("data", {}):
         data = dictTelemetryData_beforeencoding["collector"]["data"].copy()
@@ -145,6 +155,15 @@ def FinalizeTelemetryData(dictTelemetryData):
         # we just transform for kv
         metric = CiscoKVFlatten.build_from_dcit(data)
         internals = list(metric.get_internal())
+
+        #breakpoint() if get_lock() else None
+        #if not ":" in path:
+        #    # we guess it is NX.
+        #    nx_metrics = list(NXEncoder.build_from_internal(x) for x in internals)
+        #    internals = []
+        #    for nx_metric in nx_metrics:
+        #        for internal in nx_metric.get_internal():
+        #            internals.append(internal)
 
         #breakpoint() if get_lock() else None
         for internal in internals:

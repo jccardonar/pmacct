@@ -213,7 +213,7 @@ class OptionsFields(Flag):
 class ContentTransformation(MetricTransformationBase):
     """
     General classes that transform content (do not yield multiple,metrics, only one transformed)
-    It first transforms the hierachically fields.
+    It first transforms the hierachically fields, in order, for instance, to flatten internal hierarchies first and then the current
     """
 
     def __init__(self, options, paths):
@@ -296,7 +296,7 @@ class ContentTransformation(MetricTransformationBase):
 
         # first convert the children
         if fields_with_children:
-            # if we have children, this means we have children
+            # this means we have fields with children:
             # lists or composed fields.
             for fname, n_path in fields_with_children.items():
                 fcontent = fields[fname]
@@ -648,6 +648,7 @@ class Generator:
 class MetricSpliting(MetricTransformationBase):
     """
     Base functioning of splitting the metric similar to how the extrq keys function. Other splitting operations might have the same characteristics.
+    It "splits" the current metric then it repeats the operation with the internal ones (in order for the next to, for instance, have the proper new keys)
     """
 
     def transform(self, metric):

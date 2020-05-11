@@ -91,18 +91,22 @@ We can try to flatten data
 
 from .base import BaseEncoding, BaseEncodingException, InternalMetric
 import sys
+from debug import get_lock
 
 # TODO: Fix this relative import
-#sys.path.append("..")
-#from cisco_pmgrpcd import process_cisco_kv
+# sys.path.append("..")
+# from cisco_pmgrpcd import process_cisco_kv
 
 NON_VALUE_FIELDS = set(["name", "timestamp", "fields"])
+
 
 class CiscoGPBException(BaseEncodingException):
     pass
 
+
 class EmptyValue(CiscoGPBException):
     pass
+
 
 ONE_OF = set(
     [
@@ -128,10 +132,11 @@ def process_cisco_kv(new_msg):
     """
     telemetry_msg = cisco_telemetry_pb2.Telemetry()
     telemetry_msg.ParseFromString(new_msg.data)
-    #jsonStrTelemetry = MessageToJson(telemetry_msg)
-    #grpc_message = json.loads(jsonStrTelemetry)
+    # jsonStrTelemetry = MessageToJson(telemetry_msg)
+    # grpc_message = json.loads(jsonStrTelemetry)
     grpc_message = MessageToDict(telemetry_msg)
     return grpc_message
+
 
 class CiscoKVFlatten(BaseEncoding):
     p_key = "encodingPath"
@@ -148,7 +153,7 @@ class CiscoKVFlatten(BaseEncoding):
 
     @classmethod
     def build_from_dcit(cls, content):
-        data = content
+        data = content.copy()
         if cls.content_key not in data:
             data[cls.content_key] = {}
             if "dataGpbkv" in data and data["dataGpbkv"]:
@@ -157,7 +162,6 @@ class CiscoKVFlatten(BaseEncoding):
         if cls.p_key not in data:
             data[cls.p_key] = data["encoding_path"]
         return cls(data)
-
 
     def __init__(self, data, names_data=None, extra_keys=None):
         if names_data is None:
@@ -205,6 +209,9 @@ class CiscoKVFlatten(BaseEncoding):
                     # TODO: Should we log this?
                     continue
             self.add_to_flatten(flatten_content, name, value)
+        # this is to deal with NX fields wwithout name
+        if len(flatten_content) == 1 and "Unknown" in flatten_content:
+            return flatten_content["Unknown"]
         return flatten_content
 
     def convert_ciscokv_to_dict(self, fields):
@@ -245,7 +252,7 @@ class CiscoKVFlatten(BaseEncoding):
     @staticmethod
     def cast_value(field):
         """
-        Obtains a value from a TelemetryField. 
+        Obtains a value from a TelemetryField.
         """
         value = None
         found = False
@@ -277,3 +284,112 @@ class CiscoKVFlatten(BaseEncoding):
             pass
 
         return value
+
+
+class NXEncoder(BaseEncoding):
+    """
+    Holds the encoding of NX
+    """
+
+    ELEMENT_KEYS = set(["attributes", "children"])
+
+    @classmethod
+    def build_from_dcit(cls, content):
+        metric = CiscoKVFlatten.build_from_dcit(content)
+        for internal in metric.get_internal():
+            yield cls.build_from_internal(internal)
+
+    @classmethod
+    def build_from_internal(cls, internal):
+        data = internal.data.copy()
+        return cls(data)
+
+    def detect_element(self, element):
+        if (
+            element
+            and isinstance(element, dict)
+            and set(element.keys()).issubset(self.ELEMENT_KEYS)
+        ):
+            return True
+        return False
+
+    @staticmethod
+    def find_key(flatten_content, key):
+        if key not in flatten_content:
+            return key
+        for n in range(0, 20):
+            nkey = "_".join([key, str(n)])
+            if nkey not in flatten_content:
+                return nkey
+        raise Exception("We could not find key")
+
+    def convert_nx_element(self, element):
+        new_element = {}
+        # find children first
+        keys_list = set()
+        children = element.get("children", [])
+        if not isinstance(children, list):
+            children = [children]
+        for children_object  in children:
+            # not sure what to do with childrens that have two elements.
+            for old_key, v in children_object.items():
+                rn, nv = self.convert_nx_api(v)
+                if rn is None:
+                    # complain
+                    k = old_key
+                else:
+                    if "[" in rn:
+                        k = rn.split("[")[0]
+                    else:
+                        k = rn
+                if k in new_element and k not in keys_list:
+                    old_element = new_element[k]
+                    new_element[k] = [old_element]
+                    keys_list.add(k)
+                if k in new_element:
+                    new_element[k].append(nv)
+                else:
+                    new_element[k] = nv
+
+        # just get the attruibutes
+        for k, v in element.get("attributes", {}).items():
+            nk = self.find_key(new_element, k)
+            new_element[nk] = v
+        rn = element.get("attributes", {}).get("rn", None)
+        return rn, new_element
+
+    def convert_nx_api(self, content):
+        if isinstance(content, list):
+            new_content = []
+            for element in content:
+                new_element = self.convert_nx_api(element)
+                new_content.append(new_element)
+            return new_content
+        if isinstance(content, dict):
+            if self.detect_element(content):
+                rn, new_content = self.convert_nx_element(content)
+                return rn, new_content
+            new_content = {}
+            for k, element in content.items():
+                if self.detect_element(element):
+                    rn, new_element = self.convert_nx_element(element)
+                else:
+                    raise Exception("Wrong point")
+                new_content[k] = new_element
+            return new_content
+        raise Exception("Type not identified")
+
+    def get_internal(self):
+        """
+        Transforms the data into a format more like the internal representation. Removing children and attributes trees and making them all fields.
+        """
+        # Make sure we do a list, in case we find that at some point
+        content = self.content
+        if not isinstance(content, list):
+            content = [content]
+
+        for sample in content:
+            new_content = self.convert_nx_api(sample)
+            data = self.data.copy()
+            data[self.content_key] = new_content
+            yield InternalMetric(data)
