@@ -25,50 +25,111 @@
 #
 import logging
 from pathlib import Path
+from types import MethodType
 
-SCRIPTVERSION = "1.1"
+SCRIPTVERSION = "1.4"
 
-class FileNotFound(Exception):
-    pass
 
 
 PMGRPCDLOG = logging.getLogger("PMGRPCDLOG")
 OPTIONS = None
 MISSGPBLIB = {}
 
+TRACE_LEVEL = 5
+def add_trace_function_to_logger(logger):
+    '''
+    We "patch" a logger to have a tracer function with level 1 to emit msgs per packet.
+    This is synthatic sugar for
+    log(TRACE_LEVEL, msg, *args, **kargs)
+    from https://block.arch.ethz.ch/blog/2016/07/adding-methods-to-python-classes/
+    '''
+    logging.addLevelName(5, "TRACE")
+    def trace(self, msg, *args, **kargs):
+        return self.log(TRACE_LEVEL, msg, *args, **kargs)
+    logger.trace = MethodType(trace, logger)
 
 
-def init_pmgrpcdlog():
+class CollectorState:
+    def __init__(self, config_options):
+        self.config_options = config_options
+
+    @property
+    def OPTIONS(self):
+        return self._config_options
+
+    @property
+    def config_options(self):
+        return self._config_options
+
+    @config_options.setter
+    def config_options(self, config_options):
+        # validation can fall here
+        self._config_options = config_options
+
+STATE = None
+
+def get_state():
+    if STATE is None:
+        raise Exception("State has not been inizialized")
+    return STATE
+
+def init_pmgrpcdlog(config_options):
     global PMGRPCDLOG, OPTIONS
-    PMGRPCDLOG.setLevel(logging.DEBUG)
-    grformatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    global STATE
 
-    # create file handler which logs even debug messages
-    grfh = logging.FileHandler(OPTIONS.PMGRPCDLOGfile)
-    if OPTIONS.debug:
-        grfh.setLevel(logging.DEBUG)
+
+    STATE = CollectorState(config_options)
+
+    configure_logging()
+
+def configure_logging():
+
+    config_options = get_state().config_options
+
+
+    if config_options.logging_config_file:
+        logging.config.fileConfig(config_options.logging_config_file)
     else:
-        grfh.setLevel(logging.INFO)
+        grformatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+    
+        add_trace_function_to_logger(PMGRPCDLOG)
 
-    grfh.setFormatter(grformatter)
-    PMGRPCDLOG.addHandler(grfh)
-
-    if OPTIONS.console:
-        # create console handler with a higher log level
-        grch = logging.StreamHandler()
-        if OPTIONS.debug:
-            grch.setLevel(logging.DEBUG)
+        if config_options.debug:
+            PMGRPCDLOG.setLevel(logging.DEBUG)
         else:
-            grch.setLevel(logging.INFO)
+            PMGRPCDLOG.setLevel(logging.INFO)
 
-        grch.setFormatter(grformatter)
-        PMGRPCDLOG.addHandler(grch)
+
+        # create file handler which logs even debug messages
+        grfh = logging.FileHandler(config_options.PMGRPCDLOGfile)
+        #if config_options.debug:
+        #    grfh.setLevel(logging.DEBUG)
+        #else:
+        #    grfh.setLevel(logging.INFO)
+
+        grfh.setFormatter(grformatter)
+        PMGRPCDLOG.addHandler(grfh)
+
+        if config_options.console:
+            # create console handler with a higher log level
+            grch = logging.StreamHandler()
+            #if config_options.debug:
+            #    grch.setLevel(logging.DEBUG)
+            #else:
+            #    grch.setLevel(logging.INFO)
+
+            grch.setFormatter(grformatter)
+            PMGRPCDLOG.addHandler(grch)
+
+        breakpoint()
+        init_serializelog()
 
 
 def init_serializelog():
     global SERIALIZELOG
+    config_options = get_state().config_options
     SERIALIZELOG = logging.getLogger("SERIALIZELOG")
     SERIALIZELOG.setLevel(logging.DEBUG)
     seformatter = logging.Formatter(
@@ -76,8 +137,8 @@ def init_serializelog():
     )
 
     # create file handler which logs even debug messages
-    sefh = logging.FileHandler(OPTIONS.serializelogfile)
-    if OPTIONS.debug:
+    sefh = logging.FileHandler(config_options.serializelogfile)
+    if config_options.debug:
         sefh.setLevel(logging.DEBUG)
     else:
         sefh.setLevel(logging.INFO)
@@ -85,10 +146,10 @@ def init_serializelog():
     sefh.setFormatter(seformatter)
     SERIALIZELOG.addHandler(sefh)
 
-    if OPTIONS.console:
+    if config_options.console:
         # create console handler with a higher log level
         sech = logging.StreamHandler()
-        if OPTIONS.debug:
+        if config_options.debug:
             sech.setLevel(logging.DEBUG)
         else:
             sech.setLevel(logging.INFO)

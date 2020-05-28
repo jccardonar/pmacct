@@ -26,8 +26,6 @@ def configure_parser(parser):
     add_kafka(parser)
 
 
-
-
 def add_general(parser):
 
     parser.add(
@@ -94,7 +92,7 @@ def add_grpc_server(parser):
         help="change the ipport the daemon is listen on",
     )
 
-    # Workers for
+    # Workers for the server pool
     parser.add(
         "-w",
         "--workers",
@@ -102,6 +100,17 @@ def add_grpc_server(parser):
         type=int,
         dest="workers",
         help="change the nr of paralell working processes",
+    )
+
+    # certificate paths
+    parser.add(
+        "--grpc_server_private_key",
+        help="File with the private key for the grpc server",
+    )
+
+    parser.add(
+        "--grpc_server_certificate_chain",
+        help="File with the certificate chain for the grpc server",
     )
 
 
@@ -197,6 +206,13 @@ def add_output(parser):
 
 
 def add_logging(parser):
+
+    parser.add(
+        "--logging_config_file",
+        dest="logging_config_file",
+        help="File with logging config. If this is given, the rest of parameters are ignored.",
+    )
+
     parser.add(
         "-l",
         "--PMGRPCDLOGfile",
@@ -228,6 +244,12 @@ def add_logging(parser):
         help="this is to display all log-messages also on console (for development)",
     )
 
+    # The next are for packet events.
+    # packet events will overflow any logging, therefore, we prefer to use metrics
+    # packet events can be of error or debug. 
+    parser.add("--log_packet_events", action="store_true", help="Logs packet events as debug")
+    parser.add("--send_metric_packet_events", action="store_true", help="Sends packet evetns to stats (requires stats_ipport to be configured)")
+    parser.add("--stats_ipport", help="Ip and port of stats server")
 
 def add_kafka(parser):
     # Topic and servers

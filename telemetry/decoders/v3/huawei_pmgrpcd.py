@@ -38,8 +38,8 @@ import huawei_ifm_pb2
 import huawei_devm_pb2
 import openconfig_interfaces_pb2
 
-if lib_pmgrpcd.OPTIONS.huawei and (not lib_pmgrpcd.OPTIONS.cenctype == 'gpbkv'):
-    import huawei_telemetry_pb2
+#if lib_pmgrpcd.OPTIONS.huawei and (not lib_pmgrpcd.OPTIONS.cenctype == 'gpbkv'):
+import huawei_telemetry_pb2
 
 
 class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServicer):
@@ -87,9 +87,9 @@ def huawei_processing(grpcPeer, new_msg):
     PMGRPCDLOG.debug("Huawei: Received GRPC-Data")
 
     # dump the raw data
-    if lib_pmgrpcd.OPTIONS.rawdatafile:
-        PMGRPCDLOG.debug("Write rawdatafile: %s" % (lib_pmgrpcd.OPTIONS.rawdatafile))
-        with open(lib_pmgrpcd.OPTIONS.rawdatafile, "a") as rawdatafile:
+    if lib_pmgrpcd.OPTIONS.rawdatadumpfile:
+        PMGRPCDLOG.debug("Write rawdatafile: %s" % (lib_pmgrpcd.OPTIONS.rawdatadumpfile))
+        with open(lib_pmgrpcd.OPTIONS.rawdatadumpfile, "a") as rawdatafile:
             rawdatafile.write(base64.b64encode(new_msg.data).decode())
             rawdatafile.write("\n")
 

@@ -30,6 +30,12 @@ from kafka_modules.kafka_simple_exporter import KafkaExporter, load_topics_file
 from file_modules.file_producer import FileExporter
 from lib_pmgrpcd import PMGRPCDLOG
 from transformations import load_transformtions_from_file
+from exceptions import PmgrpcdException
+import os
+
+
+class FileNotFound(PmgrpcdException):
+    pass
 
 
 def configure(config=None):
@@ -52,8 +58,24 @@ def configure(config=None):
             raise Exception(f"Kafka servers  must be valid, got {config.bsservers}")
         if config.topic is None:
             raise Exception(f"Kafka topic  must be valid, got {config.topic}")
+
+        # we need to make sure the gpbmapfile and avscmapfile exist.
+        if not os.path.isfile(lib_pmgrpcd.OPTIONS.gpbmapfile):
+            raise FileNotFound(
+                "No gpbmapfile file found in {}".format(lib_pmgrpcd.OPTIONS.gpbmapfile)
+            )
+
+        # TODO: Do we really need this always?
+        if not os.path.isfile(lib_pmgrpcd.OPTIONS.avscmapfile):
+            raise FileNotFound(
+                "No avscmapfile file found in {}".format(
+                    lib_pmgrpcd.OPTIONS.avscmapfile
+                )
+            )
+
         kafka_avro_exporter = KafkaAvroExporter()
         export_pmgrpcd.EXPORTERS["kafkaavro"] = kafka_avro_exporter
+
     if config.kafkasimple:
         if config.bsservers is None:
             raise Exception(f"Kafka servers  must be valid, got {config.bsservers}")
@@ -61,9 +83,14 @@ def configure(config=None):
             raise Exception(f"Kafka topic  must be valid, got {config.topic}")
         topic_per_encoding_path = {}
         if config.file_topic_per_encoding_path is not None:
-            topic_per_encoding_path = load_topics_file(config.file_topic_per_encoding_path)
-        exporter = KafkaExporter(config.bsservers, config.topic, topic_per_encoding_path)
+            topic_per_encoding_path = load_topics_file(
+                config.file_topic_per_encoding_path
+            )
+        exporter = KafkaExporter(
+            config.bsservers, config.topic, topic_per_encoding_path
+        )
         export_pmgrpcd.EXPORTERS["kafka"] = exporter
+
     if config.file_exporter_file is not None:
         exporter = FileExporter(config.file_exporter_file)
         export_pmgrpcd.EXPORTERS["file"] = exporter

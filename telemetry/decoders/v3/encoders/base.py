@@ -9,7 +9,100 @@ ValueField = Dict[str, Union[str, float]]
 Field = Dict[str, Union["Field", ValueField]]
 
 
-class BaseEncoding:
+
+class BaseMetrics:
+
+    @classmethod
+    def has_property(cls, property_name):
+        property_obj = getattr(cls, property_name, None)
+        if property_obj is None:
+            raise Exception(f"Cls {cls} does not have property {property_name}")
+        return getattr(property_obj, "__isabstractmethod__", False)
+
+    # Some basic metadata
+    @property
+    @abstractmethod
+    def collection_timestamp(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def collection_end_time(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def collection_start_time(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def timestamp(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def collection_id(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def path(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def node(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def subscription_id(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def encoding_type(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def content(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def keys(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def data(self):
+        '''
+        The raw data of the metric.
+        '''
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def headers(self):
+        raise NotImplementedError
+
+class GrpcMetric(ABC):
+
+    @property
+    @abstractmethod
+    def grpc_headers(self):
+        raise NotImplementedError
+
+
+class BaseEncoding(BaseMetrics, ABC):
+    '''
+    Basic metric in which the data is a dict, where:
+    Headers are all values except for content and keys.
+    The keys in the dict for the standard attributes can be 
+    modified using the properties below.
+    '''
 
     content_key = "content"
     keys_key = "keys"
