@@ -123,7 +123,6 @@ def configure_logging():
             grch.setFormatter(grformatter)
             PMGRPCDLOG.addHandler(grch)
 
-        breakpoint()
         init_serializelog()
 
 

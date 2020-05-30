@@ -55,7 +55,6 @@ import inspect
 
 
 def log_wrapper(method):
-    print(f"Patching {method}")
 
     @wraps(method)
     def wrapped(*args, **kwargs):
@@ -114,6 +113,7 @@ class gRPCMdtDialoutServicer(
         jsonTelemetryNode = json.dumps(grpcPeer, indent=2, sort_keys=True)
 
         PMGRPCDLOG.debug("Cisco connection info: %s" % jsonTelemetryNode)
+        breakpoint()
 
         # Now go over the msgs
         for new_msg in msg_iterator:
