@@ -99,7 +99,7 @@ class PivotingCiscoGPBKVDict:
                 name = field.get("name", None)
                 if name is None:
                     name = "Unknown"
-                    warnings.add(UnknownField(f"Found Unknown"))
+                    #warnings.add(UnknownField(f"Found Unknown"))
                 value = self.convert_telemetryfield_to_dict(field, warnings)
             else:
                 try:
@@ -109,8 +109,10 @@ class PivotingCiscoGPBKVDict:
                     continue
             self.add_to_flatten(flatten_content, name, value)
         # this is to deal with NX fields wwithout name
-        if len(flatten_content) == 1 and "Unknown" in flatten_content:
-            return flatten_content["Unknown"]
+        if "Unknown" in flatten_content:
+            if len(flatten_content) == 1:
+                return flatten_content["Unknown"]
+            warnings.add(UnknownField(f"Found Unknown"))
         return flatten_content
 
     @staticmethod

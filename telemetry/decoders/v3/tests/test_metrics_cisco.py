@@ -11,6 +11,9 @@ from metric_types.cisco_metrics import (
     CiscoEncodings,
     CiscoGrpcKV,
     CiscoGrpcJson,
+    NxGrpcGPB,
+    NXGrpcKV,
+    NXElement
 )
 
 DATA_FOLDER = data_folder()
@@ -79,4 +82,33 @@ class TestCiscoGPVKV:
             for cisco_elmement in cisco_gpbvk.pivot_data():
                 assert cisco_elmement.path
                 assert cisco_elmement.keys is not None
+
+class TestCiscoNX:
+
+    @pytest.mark.parametrize("file_name", [x for x in CISCO_FILES if "nx" in str(x)])
+    def test_creation_nx_general(self, file_name):
+        content = load_dump_file(file_name).split("\n")
+        for line in content:
+            if not line:
+                continue
+            raw_metric = GrpcRaw.from_base64(line)
+            cisco_nx_raw = NxGrpcGPB.from_grpc_msg_gpb(raw_metric)
+            try:
+                encoding = cisco_nx_raw.infer_encoding()
+            except EncodingNotFound:
+                encoding = None
+            if encoding and encoding != CiscoEncodings.GPBVK:
+                pytest.fail(f"File {file_name} includes a line that is not GPBVK")
+            cisco_nx_gpbvk = NXGrpcKV.from_cisco_grpc_gpb(cisco_nx_raw)
+            assert cisco_nx_gpbvk.content == cisco_nx_gpbvk.data["data_gpbkv"]
+            assert cisco_nx_gpbvk.subscription_id
+            for nx_elmement in cisco_nx_gpbvk.pivot_data():
+                assert isinstance(nx_elmement, NXElement)
+                assert nx_elmement.path
+                assert nx_elmement.keys is not None
+                print(nx_elmement.path)
+                if "sys" in nx_elmement.path and "qos" not in nx_elmement.path:
+                    breakpoint()
+
+
 

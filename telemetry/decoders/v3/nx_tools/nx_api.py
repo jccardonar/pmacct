@@ -37,7 +37,9 @@ class PivotingNXApiDict:
                 return nkey
         raise Exception("We could not find key")
 
-    def convert_nx_element(self, element):
+    def convert_nx_element(self, element, warnings=None):
+        if warnings is None:
+            warnings = set()
         new_element = {}
         # find children first
         keys_list = set()
@@ -47,7 +49,7 @@ class PivotingNXApiDict:
         for children_object  in children:
             # not sure what to do with childrens that have two elements.
             for old_key, v in children_object.items():
-                rn, nv = self.convert_nx_api(v)
+                rn, nv = self.pivot_nx_api(v, warnings)
                 if rn is None:
                     # complain
                     k = old_key
@@ -72,7 +74,9 @@ class PivotingNXApiDict:
         rn = element.get("attributes", {}).get("rn", None)
         return rn, new_element
 
-    def convert_nx_api(self, content):
+    def pivot_nx_api(self, content, warnings=None):
+        if warnings is None:
+            warnings = set()
         if isinstance(content, list):
             new_content = []
             for element in content:
@@ -81,12 +85,12 @@ class PivotingNXApiDict:
             return new_content
         if isinstance(content, dict):
             if self.detect_element(content):
-                rn, new_content = self.convert_nx_element(content)
+                rn, new_content = self.convert_nx_element(content, warnings)
                 return rn, new_content
             new_content = {}
             for k, element in content.items():
                 if self.detect_element(element):
-                    rn, new_element = self.convert_nx_element(element)
+                    rn, new_element = self.convert_nx_element(element, warnings)
                 else:
                     raise Exception("Wrong point")
                 new_content[k] = new_element

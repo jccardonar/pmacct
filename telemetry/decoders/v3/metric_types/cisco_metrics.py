@@ -294,8 +294,6 @@ class NxGrpcGPB(CiscoGrpcGPB):
     in a few paths.
     """
 
-    # using the next, the resulting elemens from get_elements should be  NXElement.
-    element_class = NXElement
 
     def infer_nx_path(self):
         raise NotImplementedError
@@ -309,4 +307,5 @@ class NxGrpcGPB(CiscoGrpcGPB):
 
 
 class NXGrpcKV(CiscoGrpcKV):
+    element_class = NXElement
     pass
