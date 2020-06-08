@@ -13,7 +13,8 @@ from metric_types.cisco_metrics import (
     CiscoGrpcJson,
     NxGrpcGPB,
     NXGrpcKV,
-    NXElement
+    NXElement,
+    CiscoElement
 )
 
 DATA_FOLDER = data_folder()
@@ -99,16 +100,34 @@ class TestCiscoNX:
                 encoding = None
             if encoding and encoding != CiscoEncodings.GPBVK:
                 pytest.fail(f"File {file_name} includes a line that is not GPBVK")
-            cisco_nx_gpbvk = NXGrpcKV.from_cisco_grpc_gpb(cisco_nx_raw)
+
+            nx_api = False
+            if "api" in str(file_name):
+                nx_api = True
+
+            cisco_nx_gpbvk = NXGrpcKV.from_cisco_grpc_gpb(cisco_nx_raw, nx_api=nx_api)
             assert cisco_nx_gpbvk.content == cisco_nx_gpbvk.data["data_gpbkv"]
             assert cisco_nx_gpbvk.subscription_id
             for nx_elmement in cisco_nx_gpbvk.pivot_data():
-                assert isinstance(nx_elmement, NXElement)
+                if "api" in str(file_name):
+                    assert isinstance(nx_elmement, NXElement)
+
+                else:
+                    assert isinstance(nx_elmement,CiscoElement)
                 assert nx_elmement.path
                 assert nx_elmement.keys is not None
                 print(nx_elmement.path)
-                if "sys" in nx_elmement.path and "qos" not in nx_elmement.path:
-                    breakpoint()
+                paths = nx_elmement.sensor_paths
+
+                # Do an extra pivot if we have an api
+                if isinstance(nx_elmement, NXElement):
+                    for nx_api_element in nx_elmement.get_elements():
+                        assert isinstance(nx_api_element, CiscoElement)
+                        paths = nx_api_element.sensor_paths
+                        for path in paths:
+                            if "children" in path:
+                                pytest.fail(f"Found children in path {path}")
+
 
 
 

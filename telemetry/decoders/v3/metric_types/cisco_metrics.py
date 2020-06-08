@@ -215,8 +215,7 @@ class CiscoGrpcKV(DictSubTreeData):
 
     @classmethod
     def from_cisco_grpc_gpb(
-        cls, metric_cisco_grpc_gpb: CiscoGrpcGPB, keep_headers=True
-    ) -> "CiscoGrpcKV":
+        cls, metric_cisco_grpc_gpb: CiscoGrpcGPB ) -> "CiscoGrpcKV":
         """
         Constructs a CiscoGrpcKV using a CiscoGrpcGPB. 
         """
@@ -227,7 +226,7 @@ class CiscoGrpcKV(DictSubTreeData):
         return cls(data)
 
     def get_elements(self) -> Sequence[CiscoElement]:
-        return self.pivot_data(self)
+        return self.pivot_data()
 
     def pivot_data(self) -> Sequence[CiscoElement]:
         """
@@ -267,7 +266,10 @@ class NXElement(CiscoElement):
     Equal to CiscoElement but some special functions for NX.
     """
 
-    def get_elements(self):
+    def get_elements(self) -> Sequence[CiscoElement]:
+        return self.pivot_data()
+
+    def pivot_data(self):
         """
         Transforms the data into a format more like the internal representation. Removing children and attributes trees and making them all fields.
         """
@@ -277,7 +279,7 @@ class NXElement(CiscoElement):
             content = [content]
 
         for sample in content:
-            new_content = PivotingNXApiDict().convert_nx_api(sample)
+            new_content = PivotingNXApiDict().pivot_nx_api(sample)
             data = self.data.copy()
             data[self.content_key] = new_content
             yield CiscoElement(data)
@@ -294,7 +296,6 @@ class NxGrpcGPB(CiscoGrpcGPB):
     in a few paths.
     """
 
-
     def infer_nx_path(self):
         raise NotImplementedError
 
@@ -307,5 +308,20 @@ class NxGrpcGPB(CiscoGrpcGPB):
 
 
 class NXGrpcKV(CiscoGrpcKV):
-    element_class = NXElement
-    pass
+    def __init__(self, data, nx_api=False):
+        super().__init__(data)
+        if nx_api:
+            self.element_class = NXElement
+
+    @classmethod
+    def from_cisco_grpc_gpb(
+        cls, metric_cisco_grpc_gpb: CiscoGrpcGPB, nx_api=False
+    ) -> "CiscoGrpcKV":
+        """
+        Constructs a CiscoGrpcKV using a CiscoGrpcGPB. 
+        """
+        data = metric_cisco_grpc_gpb.data.copy()
+        # Have empty content, if not available.
+        if cls.content_key not in data:
+            data[cls.content_key] = []
+        return cls(data, nx_api=nx_api)

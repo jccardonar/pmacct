@@ -4,11 +4,14 @@ import ujson as json
 from pygtrie import CharTrie
 from utils import generate_content_from_raw
 import base64
+from functools import lru_cache
 
 
 # Types
 ValueField = Dict[str, Union[str, float]]
 Field = Dict[str, Union["Field", ValueField]]
+
+ContainersTypes = (dict, list)
 
 class TelemetryException(Exception):
     pass
@@ -236,6 +239,31 @@ class DictElementData(DictSubTreeData):
     @property
     def keys(self):
         return self.load_from_data(self.keys_key, "keys")
+
+    @classmethod
+    def get_sensor_paths(cls, content, current_path) -> Sequence[str]:
+        '''
+        Navigtes the content, appending to the path.
+        '''
+        if isinstance(content, list):
+            for value in content:
+                yield from cls.get_sensor_paths(value, current_path)
+        if isinstance(content, dict):
+            for elem, value in content.items():
+                this_path = cls.form_encoding_path(current_path, [elem])
+                yield this_path
+                if isinstance(value, ContainersTypes):
+                    yield from cls.get_sensor_paths(value, this_path)
+
+    @property
+    @lru_cache(maxsize=None)
+    def sensor_paths(self) -> Sequence[str]:
+        '''
+        Returns the sensor paths of all elements of the element.
+        '''
+        paths = list(self.get_sensor_paths(self.content, self.path))
+        return paths
+            
 
 
 class GrpcRaw(DictSubTreeData):
