@@ -2,6 +2,11 @@
 Includes code to handle the nx api.
 '''
 from exceptions import PmgrpcdException
+from typing import List
+from metric_types.cisco_metrics import CiscoElement
+
+class NXMetricUnknownStructure(PmgrpcdException):
+    pass
 
 class PivotingNXApiDict:
     '''
@@ -17,6 +22,20 @@ class PivotingNXApiDict:
     def build_from_internal(cls, internal):
         data = internal.data.copy()
         return cls(data)
+
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
+        pivoted_elements = self.pivot_nx_api(metric.content, warnings)
+        element_data = metric.data.copy()
+        if len(pivoted_elements) == 1 and metric.path in pivoted_elements:
+            element_data[CiscoElement.content_key] = pivoted_elements[metric.path]
+            yield CiscoElement(element_data)
+            return
+        warnings.append(NXMetricUnknownStructure("Head of metric with more than one element, or with key not path"))
+        element_data[CiscoElement.content_key] = pivoted_elements
+        yield CiscoElement(element_data)
+
 
     def detect_element(self, element):
         if (
@@ -37,9 +56,7 @@ class PivotingNXApiDict:
                 return nkey
         raise Exception("We could not find key")
 
-    def convert_nx_element(self, element, warnings=None):
-        if warnings is None:
-            warnings = set()
+    def convert_nx_element(self, element, warnings: List[Exception]):
         new_element = {}
         # find children first
         keys_list = set()
@@ -74,9 +91,7 @@ class PivotingNXApiDict:
         rn = element.get("attributes", {}).get("rn", None)
         return rn, new_element
 
-    def pivot_nx_api(self, content, warnings=None):
-        if warnings is None:
-            warnings = set()
+    def pivot_nx_api(self, content, warnings: List[Exception]):
         if isinstance(content, list):
             new_content = []
             for element in content:
@@ -93,7 +108,10 @@ class PivotingNXApiDict:
                     rn, new_element = self.convert_nx_element(element, warnings)
                 else:
                     raise Exception("Wrong point")
-                new_content[k] = new_element
+                new_key = k
+                if "dn" in new_element:
+                    new_key = new_element["dn"]
+                new_content[new_key] = new_element
             return new_content
         raise Exception("Type not identified")
 

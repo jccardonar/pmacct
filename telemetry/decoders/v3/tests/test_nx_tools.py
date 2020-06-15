@@ -105,7 +105,7 @@ nx_test_cases = [
             }
         },
         "expected": {
-                "interfaceEntity": {
+                "sys/intf": {
                     "childAction": "",
                     "descr": "",
                     "dn": "sys/intf",
@@ -205,7 +205,8 @@ class TestPivotDict:
     )
     def test_pivot_dict(self, original, expected, paths):
         pivoter = nx_api.PivotingNXApiDict()
-        warnings = set()
+        warnings = []
         pivoted = pivoter.pivot_nx_api(original, warnings)
         assert pivoted == expected
         assert not warnings
+        

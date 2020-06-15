@@ -41,3 +41,21 @@ def load_dump_line(file_name: Union[Path, str], line_number: int):
     return content[line_number-1]
 
 
+BASIC_PROPERTIES = ["collection_timestamp", "collection_end_time", "collection_start_time", "msg_timestamp", "collection_id", "path", "node_id", "subscription_id"]
+
+def check_metric_properties(metric):
+    '''
+    Test the basic metric properties.
+    No matter the result, it should not raise an exception
+    '''
+    failing_attr = []
+    for attr in BASIC_PROPERTIES:
+        try:
+            _ = getattr(metric, attr)
+        except:
+            failing_attr.append(attr)
+    return failing_attr
+
+
+
+

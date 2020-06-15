@@ -4,8 +4,8 @@ from metric_types.base_types import (
     load_data_and_make_property,
     GrpcRaw,
 )
+from abc import ABC, abstractmethod
 from cisco_gbpvk_tools.cisco_gpbvkv import PivotingCiscoGPBKVDict
-from nx_tools.nx_api import PivotingNXApiDict
 from enum import Enum
 from typing import Sequence
 import ujson as json
@@ -15,7 +15,7 @@ from google.protobuf.json_format import MessageToDict
 from exceptions import PmgrpcdException
 
 
-def process_cisco_kv(new_msg):
+def process_cisco_grpc_msg(new_msg):
     """
     Processes a cisco grpc msg.
     TODO: Make this modular. It should also work with other 
@@ -43,26 +43,24 @@ class CiscoEncodings(Enum):
     COMPACT = 2
 
 
-class CiscoSubTree:
-    """
-    A subtree of cisco in python dictionary form.
-    In an instance of this type, data should similar to what a yang representation should b (e.g. relational model, no open schemas, no EAV, no "keys", "values", "childrens" fields)
-    """
-
-    def get_elements(self) -> Sequence["CiscoElement"]:
-        """
-        Returns a sequence of elements.
-        """
-
-
 class CiscoElement(DictElementData):
     """
     An element of a cisco subtree.
     Again, following a relational model
     """
 
-    def get_elements(self) -> "Sequence[CiscoElement]":
-        return [self]
+    @property
+    def subscription_id(self):
+        options = ["subscription_id_str", "subscription_id"]
+        for option in options:
+            if option in self.data:
+                return self.data[option]
+        raise KeyError("No subscription found")
+
+    @property
+    def msg_timestamp(self):
+        if self.msg_timestamp_key not in self.data:
+            return self.collection_start_time
 
 
 class CiscoGrpcGPB(DictSubTreeData):
@@ -96,7 +94,7 @@ class CiscoGrpcGPB(DictSubTreeData):
         return self.data[self.data_json_key]
 
     @property
-    def data_gpvkv(self):
+    def data_gpbkv(self):
         if self.data_gpvkv_key not in self.data:
             return None
         return self.data[self.data_gpvkv_key]
@@ -106,6 +104,7 @@ class CiscoGrpcGPB(DictSubTreeData):
         if self.data_comp_key not in self.data:
             return None
         return self.data[self.data_comp_key]
+
 
     @property
     def content(self):
@@ -119,77 +118,105 @@ class CiscoGrpcGPB(DictSubTreeData):
                 return self.data[option]
         raise KeyError("No subscription found")
 
-    @classmethod
-    def from_grpc_msg_gpb(
-        cls, metric_grpc_raw: GrpcRaw, keep_headers=True
-    ) -> "CiscoGrpcGPB":
-        """
-        Constructs a CiscoGrpcGPB from a GrpcRaw.
-        It needs to decode the raw grpc msg using the cisco proto.
-        """
-        decoded_content = process_cisco_kv(metric_grpc_raw.content)
-        if keep_headers:
-            for header, value in metric_grpc_raw.headers.items():
+    #@classmethod
+    #def from_grpc_msg_gpb(
+    #    cls, metric_grpc_raw: GrpcRaw, keep_headers=True
+    #) -> "CiscoGrpcGPB":
+    #    """
+    #    Constructs a CiscoGrpcGPB from a GrpcRaw.
+    #    It needs to decode the raw grpc msg using the cisco proto.
+    #    """
+    #    decoded_content = process_cisco_grpc_msg(metric_grpc_raw.content)
+    #    if keep_headers:
+    #        for header, value in metric_grpc_raw.headers.items():
 
+    #            if header not in decoded_content:
+    #                decoded_content[header] = value
+    #    return cls(decoded_content)
+
+    #@classmethod
+    #def from_grpc_msg_json(
+    #    cls, metric_grpc_raw: GrpcRaw, keep_headers=True
+    #) -> "CiscoGrpcGPB":
+    #    """
+    #    Constructs a CiscoGrpcGPB from a GrpcRaw.
+    #    It needs to decode the raw grpc msg using the cisco proto.
+    #    """
+    #    decoded_content = json.decode(metric_grpc_raw.content)
+    #    if keep_headers:
+    #        for header, value in metric_grpc_raw.headers.items():
+    #            if header not in decoded_content:
+    #                decoded_content[header] = value
+    #    return cls(decoded_content)
+
+class BaseConverter:
+
+    def convert(self, metric, warnings=None):
+        transformation = list(self.transform(metric, warnings))
+        if len(transformation) != 1:
+            raise Exception("Transformation returns more than one lement")
+        return transformation[0]
+
+class GrpcRawToCiscoGrpcGPB(BaseConverter):
+    RESULTING_CLASS = CiscoGrpcGPB
+
+    def __init__(self, keep_headers=True):
+        self.keep_headers = keep_headers
+
+    @abstractmethod
+    def get_content(self, metric):
+        '''
+        Decodes the content of the grpc msg.
+        '''
+        raise NotImplementedError("Not implemented")
+
+    def transform(self, metric: GrpcRaw, warnings=None):
+        decoded_content = self.get_content(metric)
+        if self.keep_headers:
+            for header, value in metric.headers.items():
                 if header not in decoded_content:
                     decoded_content[header] = value
-        return cls(decoded_content)
+        yield self.RESULTING_CLASS(decoded_content)
 
-    @classmethod
-    def from_grpc_msg_json(
-        cls, metric_grpc_raw: GrpcRaw, keep_headers=True
-    ) -> "CiscoGrpcGPB":
-        """
-        Constructs a CiscoGrpcGPB from a GrpcRaw.
-        It needs to decode the raw grpc msg using the cisco proto.
-        """
-        decoded_content = json.decode(metric_grpc_raw.content)
-        if keep_headers:
-            for header, value in metric_grpc_raw.headers.items():
+class GrpcRawJsonToCiscoGrpcGPB(GrpcRawToCiscoGrpcGPB):
+    def get_content(self, metric):
+        decoded_content = json.decode(metric.content)
+        return decoded_content
 
-                if header not in decoded_content:
-                    decoded_content[header] = value
-        return cls(decoded_content)
+class GrpcRawGPBToCiscoGrpcGPB(GrpcRawToCiscoGrpcGPB):
+    def get_content(self, metric):
+        decoded_content = process_cisco_grpc_msg(metric.content)
+        return decoded_content
+
+    
+class SimpleConversion(BaseConverter):
+    '''
+    Base for a transformation that basically "casts" one metric to another.
+    This could be similar to using  object.__class__ = NewClass, 
+    but it looks less hacky.
+    Abstract handeling from https://stackoverflow.com/questions/45248243/most-pythonic-way-to-declare-an-abstract-class-property
+    '''
+    ORIGINAL_CLASS = NotImplemented
+    RESULTING_CLASS = NotImplemented
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        if cls.ORIGINAL_CLASS is NotImplemented:
+            raise NotImplementedError('Please define the original class')
+        if cls.RESULTING_CLASS is NotImplemented:
+            raise NotImplementedError('Please define the resulting class')
+
+    def transform(cls, metric, warnings=None):
+        data = metric.data.copy()
+        # Have empty content, if not available.
+        if cls.RESULTING_CLASS.content_key not in data:
+            data[cls.RESULTING_CLASS.content_key] = []
+        return [cls.RESULTING_CLASS(data)]
 
 
 class CiscoGrpcJson(DictSubTreeData):
     content_key = "data_json"
-
-    @classmethod
-    def from_cisco_grpc_gpb(
-        cls, metric_cisco_grpc_gpb: CiscoGrpcGPB, keep_headers=True
-    ) -> "CiscoGrpcJson":
-        """
-        Constructs a CiscoGrpcKV using a CiscoGrpcGPB. 
-        """
-        data = metric_cisco_grpc_gpb.data.copy()
-        # Have empty content, if not available.
-        if cls.content_key not in data:
-            data[cls.content_key] = []
-        return cls(data)
-
-    def convert_json_keys(self, keys):
-        new_keys = {}
-        for key_value in keys:
-            key, value = list(key_value.items())[0]
-            PivotingCiscoGPBKVDict.add_to_flatten(new_keys, key, value)
-        return new_keys
-
-    def convert_json_content(self, content):
-        return content
-
-    def get_elements(self) -> Sequence[CiscoElement]:
-        cisco_elements = []
-        for element in self.content:
-            element_data = self.headers.copy()
-            keys = self.convert_json_keys(element.get("keys", []))
-            content = self.convert_json_content(element.get("content", {}))
-
-            # we will be igonring timestamp right now.
-            element_data[CiscoElement.content_key] = content
-            element_data[CiscoElement.keys_key] = keys
-            cisco_elements.append(CiscoElement(element_data))
-        return cisco_elements
 
     @property
     def subscription_id(self):
@@ -199,6 +226,34 @@ class CiscoGrpcJson(DictSubTreeData):
                 return self.data[option]
         raise KeyError("No subscription found")
 
+class CiscoGrpcJsonToCiscoElement:
+
+    def convert_json_content(self, content):
+        return content
+
+    def convert_json_keys(self, keys):
+        new_keys = {}
+        for key_value in keys:
+            key, value = list(key_value.items())[0]
+            PivotingCiscoGPBKVDict.add_to_flatten(new_keys, key, value)
+        return new_keys
+
+    def transform(self, metric):
+        for element in metric.content:
+            element_data = metric.headers.copy()
+            keys = self.convert_json_keys(element.get("keys", []))
+            content = self.convert_json_content(element.get("content", {}))
+
+            # we will be igonring timestamp right now.
+            element_data[CiscoElement.content_key] = content
+            element_data[CiscoElement.keys_key] = keys
+            yield CiscoElement(element_data)
+        return 
+
+
+class CiscoGrpcGPBToCiscoGrpcJson(SimpleConversion):
+    ORIGINAL_CLASS = CiscoGrpcGPB
+    RESULTING_CLASS = CiscoGrpcJson
 
 class CiscoGrpcKV(DictSubTreeData):
     """
@@ -213,38 +268,38 @@ class CiscoGrpcKV(DictSubTreeData):
         self.pivoter = pivoter
         super().__init__(data)
 
-    @classmethod
-    def from_cisco_grpc_gpb(
-        cls, metric_cisco_grpc_gpb: CiscoGrpcGPB ) -> "CiscoGrpcKV":
-        """
-        Constructs a CiscoGrpcKV using a CiscoGrpcGPB. 
-        """
-        data = metric_cisco_grpc_gpb.data.copy()
-        # Have empty content, if not available.
-        if cls.content_key not in data:
-            data[cls.content_key] = []
-        return cls(data)
+    #@classmethod
+    #def from_cisco_grpc_gpb(
+    #    cls, metric_cisco_grpc_gpb: CiscoGrpcGPB ) -> "CiscoGrpcKV":
+    #    """
+    #    Constructs a CiscoGrpcKV using a CiscoGrpcGPB. 
+    #    """
+    #    data = metric_cisco_grpc_gpb.data.copy()
+    #    # Have empty content, if not available.
+    #    if cls.content_key not in data:
+    #        data[cls.content_key] = []
+    #    return cls(data)
 
-    def get_elements(self) -> Sequence[CiscoElement]:
-        return self.pivot_data()
+    #def get_elements(self) -> Sequence[CiscoElement]:
+    #    return self.pivot_data()
 
-    def pivot_data(self) -> Sequence[CiscoElement]:
-        """
-        Pivots the data and returns a CiscoSubTree
-        """
-        pivoter = self.pivoter
-        if pivoter is None:
-            pivoter = PivotingCiscoGPBKVDict()
-        pivoted_elements = pivoter.pivot_telemetry_fields(self.content)
+    #def pivot_data(self) -> Sequence[CiscoElement]:
+    #    """
+    #    Pivots the data and returns a CiscoSubTree
+    #    """
+    #    pivoter = self.pivoter
+    #    if pivoter is None:
+    #        pivoter = PivotingCiscoGPBKVDict()
+    #    pivoted_elements = pivoter.pivot_telemetry_fields(self.content)
 
-        cisco_elements = []
-        for element_content in pivoted_elements:
-            element_data = self.headers.copy()
-            # we will be igonring timestamp right now.
-            element_data[self.element_class.content_key] = element_content["content"]
-            element_data[self.element_class.keys_key] = element_content["keys"]
-            cisco_elements.append(self.element_class(element_data))
-        return cisco_elements
+    #    cisco_elements = []
+    #    for element_content in pivoted_elements:
+    #        element_data = self.headers.copy()
+    #        # we will be igonring timestamp right now.
+    #        element_data[self.element_class.content_key] = element_content["content"]
+    #        element_data[self.element_class.keys_key] = element_content["keys"]
+    #        cisco_elements.append(self.element_class(element_data))
+    #    return cisco_elements
 
     @property
     def subscription_id(self):
@@ -255,10 +310,9 @@ class CiscoGrpcKV(DictSubTreeData):
         raise KeyError("No subscription found")
 
 
-class NxAPIDataType(Enum):
-    OPENCONFIG = 0
-    API = 1
-    SHOW = 2
+class CiscoGrpcGPBToCiscoGrpcKV(SimpleConversion):
+    ORIGINAL_CLASS = CiscoGrpcGPB
+    RESULTING_CLASS = CiscoGrpcKV
 
 
 class NXElement(CiscoElement):
@@ -266,23 +320,23 @@ class NXElement(CiscoElement):
     Equal to CiscoElement but some special functions for NX.
     """
 
-    def get_elements(self) -> Sequence[CiscoElement]:
-        return self.pivot_data()
+    #def get_elements(self) -> Sequence[CiscoElement]:
+    #    return self.pivot_data()
 
-    def pivot_data(self):
-        """
-        Transforms the data into a format more like the internal representation. Removing children and attributes trees and making them all fields.
-        """
-        # Make sure we do a list, in case we find that at some point
-        content = self.content
-        if not isinstance(content, list):
-            content = [content]
+    #def pivot_data(self):
+    #    """
+    #    Transforms the data into a format more like the internal representation. Removing children and attributes trees and making them all fields.
+    #    """
+    #    # Make sure we do a list, in case we find that at some point
+    #    content = self.content
+    #    if not isinstance(content, list):
+    #        content = [content]
 
-        for sample in content:
-            new_content = PivotingNXApiDict().pivot_nx_api(sample)
-            data = self.data.copy()
-            data[self.content_key] = new_content
-            yield CiscoElement(data)
+    #    for sample in content:
+    #        new_content = PivotingNXApiDict().pivot_nx_api(sample)
+    #        data = self.data.copy()
+    #        data[self.content_key] = new_content
+    #        yield CiscoElement(data)
 
 
 class NxGrpcGPB(CiscoGrpcGPB):
@@ -306,6 +360,8 @@ class NxGrpcGPB(CiscoGrpcGPB):
         """
         return self.data_gpvkv or []
 
+class GrpcRawToNxGrpcGPB(GrpcRawGPBToCiscoGrpcGPB):
+    RESULTING_CLASS = NxGrpcGPB
 
 class NXGrpcKV(CiscoGrpcKV):
     def __init__(self, data, nx_api=False):
@@ -313,15 +369,19 @@ class NXGrpcKV(CiscoGrpcKV):
         if nx_api:
             self.element_class = NXElement
 
-    @classmethod
-    def from_cisco_grpc_gpb(
-        cls, metric_cisco_grpc_gpb: CiscoGrpcGPB, nx_api=False
-    ) -> "CiscoGrpcKV":
-        """
-        Constructs a CiscoGrpcKV using a CiscoGrpcGPB. 
-        """
-        data = metric_cisco_grpc_gpb.data.copy()
-        # Have empty content, if not available.
-        if cls.content_key not in data:
-            data[cls.content_key] = []
-        return cls(data, nx_api=nx_api)
+    #@classmethod
+    #def from_cisco_grpc_gpb(
+    #    cls, metric_cisco_grpc_gpb: CiscoGrpcGPB, nx_api=False
+    #) -> "CiscoGrpcKV":
+    #    """
+    #    Constructs a CiscoGrpcKV using a CiscoGrpcGPB. 
+    #    """
+    #    data = metric_cisco_grpc_gpb.data.copy()
+    #    # Have empty content, if not available.
+    #    if cls.content_key not in data:
+    #        data[cls.content_key] = []
+    #    return cls(data, nx_api=nx_api)
+
+class NxGrpcGPBToNXGrpcKV(SimpleConversion):
+    ORIGINAL_CLASS = NxGrpcGPB
+    RESULTING_CLASS = NXGrpcKV

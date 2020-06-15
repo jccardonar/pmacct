@@ -164,9 +164,12 @@ class MetricTransformationBase(ABC):
 
     def transform_list(self, generator):
         """
-        Takes a generator of metrics and transforms. It keeps the value in case one needs
+        Takes a generator of metrics and transforms. 
+        Since the split transformations return, the auxiliary Generator keeps 
+        the return value so we can return it.
         to do  "= yield from"
         """
+        # TODO: modify the namme Generator, it is part of typing
         generagtor_with_return = Generator(generator)
         for metric in generagtor_with_return:
             yield from self.transform(metric)

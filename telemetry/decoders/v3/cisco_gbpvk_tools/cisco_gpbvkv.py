@@ -3,7 +3,7 @@ Includes classes and code to work with cisco gpbkv data.
 Note that gpbvk data could also come in python dict or in json, it just means that 
 it is encoded using the a schema from the TelemetryField msg of the cisco_telemetry.proto
 '''
-from typing import Dict, Sequence, Any
+from typing import Dict, Sequence, Any, List
 from exceptions import PmgrpcdException
 
 class CiscoGPBException(PmgrpcdException):
@@ -55,18 +55,26 @@ class PivotingCiscoGPBKVDict:
         self.casting = casting
         self.cast_int64to_int = cast_int64to_int
 
-    def pivot_telemetry_fields(self, fields, warnings=None) -> Sequence[Dict[str, Any]]:
+    def transform(self, metric, warnings=None):
         if warnings is None:
-            warnings = set()
+            warnings = []
+        pivoted_elements = self.pivot_telemetry_fields(metric.content, warnings)
+        for element_content in pivoted_elements:
+            element_data = metric.headers.copy()
+            # we will be igonring timestamp right now.
+            element_data[metric.element_class.content_key] = element_content["content"]
+            element_data[metric.element_class.keys_key] = element_content["keys"]
+            yield metric.element_class(element_data)
+
+
+    def pivot_telemetry_fields(self, fields, warnings: List[Exception]) -> Sequence[Dict[str, Any]]:
         new_fields = []
         for field in fields:
             new_field = self.pivot_telemetry_field(field, warnings)
             new_fields.append(new_field)
         return new_fields
 
-    def pivot_telemetry_field(self, fields, warnings=None) -> Sequence[Dict[str, Any]]:
-        if warnings is None:
-            warnings = set()
+    def pivot_telemetry_field(self, fields, warnings: List[Exception]) -> Sequence[Dict[str, Any]]:
         pivoted_field = {}
         if "timestamp" in fields:
             pivoted_field["timestamp"] = fields["timestamp"]
@@ -86,33 +94,31 @@ class PivotingCiscoGPBKVDict:
             [field.get("name", "") for field in fields]
         ) == set(["keys", "content"])
 
-    def convert_telemetryfield_to_dict(self, telemetry_field, warnings=None):
+    def convert_telemetryfield_to_dict(self, telemetry_field, warnings: List[Exception]):
         """
         We assume a telemetry_field to be a dict at this point.
         Pivots a telemetry field.
         """
         flatten_content = {}
-        if warnings is None:
-            warnings = set()
         for field in telemetry_field["fields"]:
             if "fields" in field and field["fields"]:
                 name = field.get("name", None)
                 if name is None:
                     name = "Unknown"
-                    #warnings.add(UnknownField(f"Found Unknown"))
+                    #warnings.append(UnknownField(f"Found Unknown"))
                 value = self.convert_telemetryfield_to_dict(field, warnings)
             else:
                 try:
                     name, value = self.simplify_cisco_field(field)
                 except EmptyValue as e:
-                    warnings.add(e)
+                    warnings.append(e)
                     continue
             self.add_to_flatten(flatten_content, name, value)
         # this is to deal with NX fields wwithout name
         if "Unknown" in flatten_content:
             if len(flatten_content) == 1:
                 return flatten_content["Unknown"]
-            warnings.add(UnknownField(f"Found Unknown"))
+            warnings.append(UnknownField(f"Found Unknown"))
         return flatten_content
 
     @staticmethod
