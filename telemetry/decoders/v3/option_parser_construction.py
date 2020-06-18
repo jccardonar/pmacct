@@ -79,6 +79,17 @@ def add_development(parser):
         help="this is to process manually (via mitigation) process a rawdatafile with a single rawrecord (for development)",
     )
 
+def add_proto_decoder(parser):
+    '''
+    Elements used for the convertion of proto to python dict (and json).
+    '''
+    parser.add("--proto_uint64_to_str", action="store",
+        help="Defines if protos int64 fields should be converted to str. Defaults to false, that is, converted to ints",
+    )
+
+    parser.add("--proto_enums_to_str", action="store",
+        help="Defines if protos enums  should be converted to str. Defaults to false, that is, converted to ints.",
+    )
 
 def add_grpc_server(parser):
     """
@@ -148,6 +159,9 @@ def add_input(parser):
     )
 
     parser.add("-i", "--ip", dest="ip", help="only accept pakets of this single ip")
+
+    # add options for protos decoding
+    add_proto_decoder(parser)
 
     parser.add(
         "-o",

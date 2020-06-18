@@ -2,7 +2,6 @@
 Tests cisco metrics construction, transformation and operations.
 """
 import pytest
-from pathlib import Path
 from .utils_test import data_folder, load_dump_file
 from metric_types.base_types import GrpcRaw
 from metric_types.cisco_metrics import (
@@ -14,18 +13,666 @@ from metric_types.cisco_metrics import (
     NxGrpcGPB,
     NXGrpcKV,
     NXElement,
-    CiscoElement
+    CiscoElement,
+    CiscoGrpcGPB,
+    EncodingNotFound,
+    CiscoEncodings,
+    CiscoGrpcKV,
+    CiscoGrpcJson,
+    NxGrpcGPB,
+    NXGrpcKV,
+    NXElement,
+    CiscoElement,
+    GrpcRawToCiscoGrpcGPB,
+    GrpcRawJsonToCiscoGrpcGPB,
+    CiscoGrpcGPBToCiscoGrpcJson,
+    CiscoGrpcJsonToCiscoElement,
+    GrpcRawGPBToCiscoGrpcGPB,
+    CiscoGrpcGPBToCiscoGrpcKV,
+    NxGrpcGPBToNXGrpcKV,
+    GrpcRawToNxGrpcGPB,
+    CiscoElementToNXElement,
 )
+from .utils_test import check_metric_properties, check_basic_properties
+from cisco_gbpvk_tools.cisco_gpbvkv import PivotingCiscoGPBKVDict
+from nx_tools.nx_api import PivotingNXApiDict
 
 DATA_FOLDER = data_folder()
 CISCO_DUMP_FOLDER = DATA_FOLDER / "cisco_dumps"
 CISCO_FILES = [x for x in CISCO_DUMP_FOLDER.iterdir() if x.is_file()]
 
+# Data for a GRPC cisco packet. This covers a json or GPB decoded, all of them "Should" follow the telemetry.proto style.
+JSON_DATA = [
+    {
+        "node_id_str": "r14.labxtx01.us.bb",
+        "subscription_id_str": "gtat-state-pmacct",
+        "encoding_path": "Cisco-IOS-XR-nto-misc-oper:memory-summary/nodes/node/summary",
+        "collection_id": "11",
+        "collection_start_time": "1590790951700",
+        "msg_timestamp": "1590790951707",
+        "collection_end_time": "1590790951716",
+        "data_json": [
+            {
+                "timestamp": "1590790951706",
+                "keys": [{"node-name": "0/RP0/CPU0"}],
+                "content": {
+                    "page-size": 4096,
+                    "ram-memory": "28757590016",
+                    "free-physical-memory": "21408897024",
+                    "system-ram-memory": "28757590016",
+                    "free-application-memory": "21408897024",
+                    "image-memory": "4194304",
+                    "boot-ram-size": "0",
+                    "reserved-memory": "0",
+                    "io-memory": "0",
+                    "flash-system": "0",
+                },
+            }
+        ],
+    }
+]
+KV_DATA = [
+    {
+        "node_id_str": "r14.labxtx01.us.bb",
+        "subscription_id_str": "gtat-state-pmacct",
+        "encoding_path": "Cisco-IOS-XR-l2-eth-infra-oper:mac-accounting/interfaces/interface",
+        "collection_id": "80116",
+        "collection_start_time": "1561673093023",
+        "msg_timestamp": "1561673093023",
+        "collection_end_time": "1561673093037",
+    }
+]
+
+NX_API_DATA = [
+    {
+        "node_id_str": "n9k",
+        "subscription_id_str": "1",
+        "encoding_path": "sys/intf",
+        "collection_id": "67",
+        "msg_timestamp": "1586033800397",
+        "data_gpbkvd": [
+            {
+                "fields": [
+                    {
+                        "name": "keys",
+                        "fields": [{"name": "sys/intf", "string_value": "sys/intf"}],
+                    },
+                    {
+                        "name": "content",
+                        "fields": [
+                            {
+                                "fields": [
+                                    {
+                                        "name": "interfaceEntity",
+                                        "fields": [
+                                            {
+                                                "fields": [
+                                                    {
+                                                        "name": "attributes",
+                                                        "fields": [
+                                                            {
+                                                                "fields": [
+                                                                    {
+                                                                        "name": "childAction",
+                                                                        "string_value": "",
+                                                                    },
+                                                                    {
+                                                                        "name": "descr",
+                                                                        "string_value": "",
+                                                                    },
+                                                                ]
+                                                            }
+                                                        ],
+                                                    },
+                                                    {
+                                                        "name": "children",
+                                                        "fields": [
+                                                            {
+                                                                "fields": [
+                                                                    {
+                                                                        "name": "l1PhysIf",
+                                                                        "fields": [
+                                                                            {
+                                                                                "fields": [
+                                                                                    {
+                                                                                        "name": "attributes",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {},
+                                                                                                    {},
+                                                                                                ]
+                                                                                            }
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        "name": "children",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            },
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                    }
+                                                                ]
+                                                            },
+                                                            {
+                                                                "fields": [
+                                                                    {
+                                                                        "name": "l1PhysIf",
+                                                                        "fields": [
+                                                                            {
+                                                                                "fields": [
+                                                                                    {
+                                                                                        "name": "attributes",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {},
+                                                                                                    {},
+                                                                                                ]
+                                                                                            }
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        "name": "children",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            },
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                    }
+                                                                ]
+                                                            },
+                                                        ],
+                                                    },
+                                                ]
+                                            }
+                                        ],
+                                    }
+                                ]
+                            }
+                        ],
+                    },
+                ]
+            }
+        ],
+    }
+]
+
+NX_OPEN_DATA = [
+    {
+        "node_id_str": "n9k",
+        "subscription_id_str": "3",
+        "encoding_path": "openconfig-interfaces:interfaces",
+        "collection_id": "8250",
+        "msg_timestamp": "1586189156482",
+        "data_gpbkv": [
+            {
+                "fields": [
+                    {
+                        "name": "keys",
+                        "fields": [
+                            {
+                                "name": "openconfig-interfaces:interfaces",
+                                "string_value": "openconfig-interfaces:interfaces",
+                            }
+                        ],
+                    },
+                    {
+                        "name": "content",
+                        "fields": [
+                            {
+                                "fields": [
+                                    {
+                                        "name": "interfaces",
+                                        "fields": [
+                                            {
+                                                "fields": [
+                                                    {
+                                                        "name": "xmlns",
+                                                        "string_value": "http://openconfig.net/yang/interfaces",
+                                                    },
+                                                    {
+                                                        "name": "interface",
+                                                        "fields": [
+                                                            {
+                                                                "fields": [
+                                                                    {
+                                                                        "name": "config",
+                                                                        "fields": [
+                                                                            {
+                                                                                "fields": [
+                                                                                    {
+                                                                                        "name": "enabled",
+                                                                                        "string_value": "false",
+                                                                                    },
+                                                                                    {
+                                                                                        "name": "mtu",
+                                                                                        "uint64_value": "1500",
+                                                                                    },
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        "name": "hold-time",
+                                                                        "fields": [
+                                                                            {
+                                                                                "fields": [
+                                                                                    {
+                                                                                        "name": "config",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            }
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        "name": "state",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            }
+                                                                                        ],
+                                                                                    },
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                    },
+                                                                ]
+                                                            },
+                                                            {
+                                                                "fields": [
+                                                                    {
+                                                                        "name": "config",
+                                                                        "fields": [
+                                                                            {
+                                                                                "fields": [
+                                                                                    {
+                                                                                        "name": "enabled",
+                                                                                        "string_value": "false",
+                                                                                    },
+                                                                                    {
+                                                                                        "name": "mtu",
+                                                                                        "uint64_value": "1500",
+                                                                                    },
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        "name": "hold-time",
+                                                                        "fields": [
+                                                                            {
+                                                                                "fields": [
+                                                                                    {
+                                                                                        "name": "config",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            }
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        "name": "state",
+                                                                                        "fields": [
+                                                                                            {
+                                                                                                "fields": [
+                                                                                                    {}
+                                                                                                ]
+                                                                                            }
+                                                                                        ],
+                                                                                    },
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                    },
+                                                                ]
+                                                            },
+                                                        ],
+                                                    },
+                                                ]
+                                            }
+                                        ],
+                                    }
+                                ]
+                            }
+                        ],
+                    },
+                ]
+            }
+        ],
+    }
+]
+
+NX_SHOW_DATA = [
+    {
+        "node_id_str": "n9k",
+        "subscription_id_str": "5",
+        "encoding_path": "show interface",
+        "collection_id": "57415",
+        "msg_timestamp": "1588610461076",
+        "data_gpbkv": [
+            {
+                "fields": [
+                    {
+                        "name": "keys",
+                        "fields": [
+                            {"name": "show interface", "string_value": "show interface"}
+                        ],
+                    },
+                    {
+                        "name": "content",
+                        "fields": [
+                            {
+                                "fields": [
+                                    {
+                                        "name": "TABLE_interface",
+                                        "fields": [
+                                            {
+                                                "fields": [
+                                                    {
+                                                        "name": "ROW_interface",
+                                                        "fields": [
+                                                            {
+                                                                "fields": [
+                                                                    {
+                                                                        "name": "interface",
+                                                                        "string_value": "mgmt0",
+                                                                    },
+                                                                    {
+                                                                        "name": "state",
+                                                                        "string_value": "up",
+                                                                    },
+                                                                ]
+                                                            },
+                                                            {
+                                                                "fields": [
+                                                                    {
+                                                                        "name": "interface",
+                                                                        "string_value": "Ethernet1/1",
+                                                                    },
+                                                                    {
+                                                                        "name": "state",
+                                                                        "string_value": "down",
+                                                                    },
+                                                                ]
+                                                            },
+                                                        ],
+                                                    }
+                                                ]
+                                            }
+                                        ],
+                                    }
+                                ]
+                            }
+                        ],
+                    },
+                ]
+            }
+        ],
+    }
+]
+
+CISCO_ELEMENTS_DATA = [
+    {
+        "node_id_str": "r14.labxtx01.us.bb",
+        "subscription_id_str": "gtat-state-pmacct",
+        "encoding_path": "Cisco-IOS-XR-nto-misc-oper:memory-summary/nodes/node/summary",
+        "collection_id": "11",
+        "collection_start_time": "1590790951700",
+        "msg_timestamp": "1590790951707",
+        "collection_end_time": "1590790951716",
+        "content": {
+            "page-size": 4096,
+            "ram-memory": "28757590016",
+            "free-physical-memory": "21408897024",
+            "system-ram-memory": "28757590016",
+            "free-application-memory": "21408897024",
+            "image-memory": "4194304",
+            "boot-ram-size": "0",
+            "reserved-memory": "0",
+            "io-memory": "0",
+            "flash-system": "0",
+        },
+        "keys": {"node-name": "0/RP0/CPU0"},
+    },
+    {
+        "node_id_str": "r14.labxtx01.us.bb",
+        "subscription_id_str": "gtat-state-pmacct",
+        "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/input/service-policy-names/service-policy-instance/statistics",
+        "collection_id": "80118",
+        "collection_start_time": "1561673093246",
+        "msg_timestamp": "1561673093246",
+        "collection_end_time": "1561673093365",
+        "content": {
+            "policy-name": "ntt-cos-in",
+            "subscriber-group": "",
+            "state": "active",
+            "state-description": "",
+            "class-stats": [
+                {
+                    "counter-validity-bitmask": "2101249",
+                    "class-name": "ntp-limit",
+                    "queue-descr": "",
+                    "cac-state": "unknown",
+                    "general-stats": {},
+                    "police-stats-array": {},
+                },
+                {
+                    "counter-validity-bitmask": "2097155",
+                    "class-name": "control-q",
+                    "queue-descr": "",
+                    "cac-state": "unknown",
+                    "general-stats": {},
+                },
+            ],
+            "satid": 0,
+        },
+        "keys": {
+            "node-name": "0/RP0/CPU0",
+            "interface-name": ["Bundle-Ether6", "HundredGigE0/3/0/3"],
+            "service-policy-name": "ntt-cos-in",
+        },
+    },
+]
+
+
+NX_DATA = [x for y in [NX_OPEN_DATA, NX_API_DATA, NX_SHOW_DATA] for x in y]
+NX_MANDATORY = [
+    "data",
+    "node_id",
+    "subscription_id",
+    "path",
+    "collection_id",
+    "content",
+]
+
+GRPC_DATA = [x for y in [JSON_DATA, KV_DATA, NX_DATA] for x in y]
+
+GPBKV_DATA = [x for y in [KV_DATA, NX_DATA] for x in y]
+
+ELEMENTS_MANDATORY = ["keys", "content"]
+
+CISCO_GRPC_MANDATORY = ["data", "node_id", "subscription_id", "path", "collection_id"]
+
+CISCO_JSON_MANDATORY = [
+    "content",
+    "data",
+    "node_id",
+    "subscription_id",
+    "path",
+    "collection_id",
+]
+
+CISCO_GPVKV_MANDATORY = [
+    "content",
+    "data",
+    "node_id",
+    "subscription_id",
+    "path",
+    "collection_id",
+]
+
+
+def metric_cisco_grpc_gpb(cisco_grpc_gpb):
+    cisco_grpc_gpb.node_id
+    cisco_grpc_gpb.subscription_id
+    cisco_grpc_gpb.path
+    cisco_grpc_gpb.collection_id
+    cisco_grpc_gpb.collection_start_time
+    #cisco_grpc_gpb.msg_timestamp
+    #cisco_grpc_gpb.content
+    cisco_grpc_gpb.collection_end_time
+    cisco_grpc_gpb.data_json
+    cisco_grpc_gpb.data_gpbkv
+    cisco_grpc_gpb.data
+    cisco_grpc_gpb.module
+
+def metric_cisco_grpc_gpb_nx(cisco_grpc_gpb):
+    cisco_grpc_gpb.node_id
+    cisco_grpc_gpb.subscription_id
+    cisco_grpc_gpb.path
+    cisco_grpc_gpb.collection_id
+    #cisco_grpc_gpb.collection_start_time
+    cisco_grpc_gpb.msg_timestamp
+    #cisco_grpc_gpb.content
+    #cisco_grpc_gpb.collection_end_time
+    cisco_grpc_gpb.data_json
+    cisco_grpc_gpb.data_gpbkv
+    cisco_grpc_gpb.data
+    cisco_grpc_gpb.module
+
+def metric_cisco_element(metric):
+    metric.node_id
+    metric.subscription_id
+    metric.path
+    metric.collection_id
+    metric.collection_start_time
+    metric.msg_timestamp
+    metric.content
+    metric.collection_end_time
+    metric.data
+    metric.keys
+    metric.module
+    assert isinstance(metric.content, dict)
+
+def metric_test_gpvkv(cisco_gpbkv):
+    cisco_gpbkv.node_id
+    cisco_gpbkv.subscription_id
+    cisco_gpbkv.path
+    cisco_gpbkv.collection_id
+    cisco_gpbkv.collection_start_time
+    #cisco_gpbkv.msg_timestamp
+    cisco_gpbkv.content
+    cisco_gpbkv.collection_end_time
+    cisco_gpbkv.module
+
+def metric_test_grpv_nx(cisco_gpbkv):
+    cisco_gpbkv.node_id
+    cisco_gpbkv.subscription_id
+    cisco_gpbkv.path
+    cisco_gpbkv.collection_id
+    #cisco_gpbkv.collection_start_time
+    cisco_gpbkv.msg_timestamp
+    cisco_gpbkv.content
+    #cisco_gpbkv.collection_end_time
+    cisco_gpbkv.module
+
+def metric_cisco_element_nx(metric):
+    assert isinstance(metric.content, dict)
+    metric.node_id
+    metric.subscription_id
+    metric.path
+    metric.collection_id
+    #metric.collection_start_time
+    metric.msg_timestamp
+    metric.content
+    #metric.collection_end_time
+    metric.data
+    metric.keys
+    metric.module
+
+
+@pytest.fixture(params=GRPC_DATA)
+def grpc_metric(request):
+    return CiscoGrpcGPB(request.param)
+
+
+@pytest.fixture(params=JSON_DATA)
+def json_metric(request):
+    return CiscoGrpcJson(request.param)
+
+
+@pytest.fixture(params=GPBKV_DATA)
+def gpbkv_metric(request):
+    return CiscoGrpcKV(request.param)
+
+
+@pytest.fixture(params=NX_DATA)
+def nx_metric(request):
+    return NxGrpcGPB(request.param)
+
+
+@pytest.fixture(params=CISCO_ELEMENTS_DATA)
+def cisco_element_metric(request):
+    return CiscoElement(request.param)
+
+
+class TestElementsMetric:
+    def test_cisco_grpc_mandatory(self, cisco_element_metric):
+        failed_attributes = check_metric_properties(
+            cisco_element_metric, ELEMENTS_MANDATORY
+        )
+        assert not failed_attributes
+
+    def test_cisco_grpc_basic(self, cisco_element_metric):
+        failed_attributes = check_basic_properties(cisco_element_metric)
+        assert not failed_attributes
+
+
+
 
 class TestCiscoGrpcGPB:
     """
-    Collection of tests for Cisco Raw metrics
+    Collection of tests for Raw and Cisco Grpc metrics
     """
+
+    def test_cisco_grpc_mandatory(self, grpc_metric):
+        failed_attributes = check_metric_properties(grpc_metric, CISCO_GRPC_MANDATORY)
+        assert not failed_attributes
+
+    def test_cisco_grpc_basic(self, grpc_metric):
+        failed_attributes = check_basic_properties(grpc_metric)
+        assert not failed_attributes
 
     @pytest.mark.parametrize("file_name", CISCO_FILES)
     def test_creation(self, file_name):
@@ -35,33 +682,64 @@ class TestCiscoGrpcGPB:
                 continue
             raw_metric = GrpcRaw.from_base64(line)
 
+
 class TestCiscoJSON:
+    def test_cisco_grpc_mandatory(self, json_metric):
+        failed_attributes = check_metric_properties(json_metric, CISCO_JSON_MANDATORY)
+        assert not failed_attributes
+
+    def test_cisco_grpc_basic(self, json_metric):
+        failed_attributes = check_basic_properties(json_metric)
+        assert not failed_attributes
+
     @pytest.mark.parametrize("file_name", [x for x in CISCO_FILES if "json" in str(x)])
     def test_creation(self, file_name):
         content = load_dump_file(file_name).split("\n")
         for line in content:
             if not line:
                 continue
+
+            # create raw metric
             raw_metric = GrpcRaw.from_base64(line)
-            cisco_raw = CiscoGrpcGPB.from_grpc_msg_json(raw_metric)
+            raw_metric.content
+
+            # get  cisco_grpc
+            cisco_grpc_gpb_metric = GrpcRawJsonToCiscoGrpcGPB().convert(raw_metric)
             try:
-                encoding = cisco_raw.infer_encoding()
+                encoding = cisco_grpc_gpb_metric.infer_encoding()
             except EncodingNotFound:
                 encoding = None
             if encoding and encoding != CiscoEncodings.JSON:
                 pytest.fail(f"File {file_name} includes a line that is not GPBVK")
-            cisco_json = CiscoGrpcJson.from_cisco_grpc_gpb(cisco_raw)
+            metric_cisco_grpc_gpb(cisco_grpc_gpb_metric)
+            cisco_json = CiscoGrpcGPBToCiscoGrpcJson().convert(cisco_grpc_gpb_metric)
+            # print(reduce_dict(cisco_grpc_gpb_metric.content, 23))
+            # breakpoint()
+            cisco_json.node_id
+            cisco_json.subscription_id
+            cisco_json.path
+            cisco_json.collection_id
+            cisco_json.collection_start_time
+            # cisco_json.msg_timestamp
+            cisco_json.content
+            cisco_json.collection_end_time
             assert cisco_json.content == cisco_json.data["data_json"]
-            assert cisco_json.subscription_id
-            for cisco_elmement in cisco_json.get_elements():
-                print(cisco_elmement.path, cisco_elmement.keys)
-
+            for element in CiscoGrpcJsonToCiscoElement().transform(cisco_json):
+                metric_cisco_element(element)
 
 
 class TestCiscoGPVKV:
     """
     Collection of tests for cisco metrics
     """
+
+    def test_cisco_grpc_mandatory(self, gpbkv_metric):
+        failed_attributes = check_metric_properties(gpbkv_metric, CISCO_GPVKV_MANDATORY)
+        assert not failed_attributes
+
+    def test_cisco_grpc_basic(self, gpbkv_metric):
+        failed_attributes = check_basic_properties(gpbkv_metric)
+        assert not failed_attributes
 
     @pytest.mark.parametrize("file_name", [x for x in CISCO_FILES if "gpbkv" in str(x)])
     def test_creation(self, file_name):
@@ -70,21 +748,35 @@ class TestCiscoGPVKV:
             if not line:
                 continue
             raw_metric = GrpcRaw.from_base64(line)
-            cisco_raw = CiscoGrpcGPB.from_grpc_msg_gpb(raw_metric)
+
+            cisco_grpc_gpb_metric = GrpcRawGPBToCiscoGrpcGPB().convert(raw_metric)
+
             try:
-                encoding = cisco_raw.infer_encoding()
+                encoding = cisco_grpc_gpb_metric.infer_encoding()
             except EncodingNotFound:
                 encoding = None
             if encoding and encoding != CiscoEncodings.GPBVK:
                 pytest.fail(f"File {file_name} includes a line that is not GPBVK")
-            cisco_gpbvk = CiscoGrpcKV.from_cisco_grpc_gpb(cisco_raw)
-            assert cisco_gpbvk.content == cisco_gpbvk.data["data_gpbkv"]
-            assert cisco_gpbvk.subscription_id
-            for cisco_elmement in cisco_gpbvk.pivot_data():
-                assert cisco_elmement.path
-                assert cisco_elmement.keys is not None
+            metric_cisco_grpc_gpb(cisco_grpc_gpb_metric)
+            cisco_gpbkv = CiscoGrpcGPBToCiscoGrpcKV().convert(cisco_grpc_gpb_metric)
+            assert cisco_gpbkv.content == cisco_gpbkv.data["data_gpbkv"]
+            metric_test_gpvkv(cisco_gpbkv)
+            for element in PivotingCiscoGPBKVDict().transform(cisco_gpbkv):
+                assert element.path
+                assert element.keys is not None
+                metric_cisco_element(element)
+                assert isinstance(element.content, dict)
+
 
 class TestCiscoNX:
+
+    def test_cisco_grpc_mandatory(self, nx_metric):
+        failed_attributes = check_metric_properties(nx_metric, NX_MANDATORY)
+        assert not failed_attributes
+
+    def test_cisco_grpc_basic(self, nx_metric):
+        failed_attributes = check_basic_properties(nx_metric)
+        assert not failed_attributes
 
     @pytest.mark.parametrize("file_name", [x for x in CISCO_FILES if "nx" in str(x)])
     def test_creation_nx_general(self, file_name):
@@ -93,27 +785,36 @@ class TestCiscoNX:
             if not line:
                 continue
             raw_metric = GrpcRaw.from_base64(line)
-            cisco_nx_raw = NxGrpcGPB.from_grpc_msg_gpb(raw_metric)
+
+            cisco_grpc_gpb_metric = GrpcRawToNxGrpcGPB().convert(raw_metric)
+            metric_cisco_grpc_gpb_nx(cisco_grpc_gpb_metric)
             try:
-                encoding = cisco_nx_raw.infer_encoding()
+                encoding = cisco_grpc_gpb_metric.infer_encoding()
             except EncodingNotFound:
                 encoding = None
             if encoding and encoding != CiscoEncodings.GPBVK:
                 pytest.fail(f"File {file_name} includes a line that is not GPBVK")
 
+            cisco_nx_gpbkv = NxGrpcGPBToNXGrpcKV().convert(cisco_grpc_gpb_metric)
+            metric_test_grpv_nx(cisco_nx_gpbkv)
+
             nx_api = False
             if "api" in str(file_name):
                 nx_api = True
 
-            cisco_nx_gpbvk = NXGrpcKV.from_cisco_grpc_gpb(cisco_nx_raw, nx_api=nx_api)
-            assert cisco_nx_gpbvk.content == cisco_nx_gpbvk.data["data_gpbkv"]
-            assert cisco_nx_gpbvk.subscription_id
-            for nx_elmement in cisco_nx_gpbvk.pivot_data():
+            assert cisco_nx_gpbkv.content == cisco_nx_gpbkv.data["data_gpbkv"]
+            assert cisco_nx_gpbkv.subscription_id
+
+            for nx_elmement in PivotingCiscoGPBKVDict().transform(cisco_nx_gpbkv):
+                metric_cisco_element_nx(nx_elmement)
+
                 if "api" in str(file_name):
+                    nx_elmement = CiscoElementToNXElement().convert(nx_elmement)
+
                     assert isinstance(nx_elmement, NXElement)
 
                 else:
-                    assert isinstance(nx_elmement,CiscoElement)
+                    assert isinstance(nx_elmement, CiscoElement)
                 assert nx_elmement.path
                 assert nx_elmement.keys is not None
                 print(nx_elmement.path)
@@ -121,13 +822,14 @@ class TestCiscoNX:
 
                 # Do an extra pivot if we have an api
                 if isinstance(nx_elmement, NXElement):
-                    for nx_api_element in nx_elmement.get_elements():
+                    warnings = []
+                    for nx_api_element in PivotingNXApiDict().transform(nx_elmement, warnings):
+                        metric_cisco_element_nx(nx_api_element)
                         assert isinstance(nx_api_element, CiscoElement)
                         paths = nx_api_element.sensor_paths
                         for path in paths:
                             if "children" in path:
                                 pytest.fail(f"Found children in path {path}")
-
-
+                    assert not warnings
 
 

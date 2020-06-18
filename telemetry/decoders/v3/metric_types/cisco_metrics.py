@@ -3,6 +3,8 @@ from metric_types.base_types import (
     DictElementData,
     load_data_and_make_property,
     GrpcRaw,
+    AttrNotFound,
+    AmbiguousContent,
 )
 from abc import ABC, abstractmethod
 from cisco_gbpvk_tools.cisco_gpbvkv import PivotingCiscoGPBKVDict
@@ -11,8 +13,9 @@ from typing import Sequence
 import ujson as json
 
 import cisco_telemetry_pb2
-from google.protobuf.json_format import MessageToDict
+from proto_override import MessageToDictUint64 as MessageToDict
 from exceptions import PmgrpcdException
+from base_transformation import BaseConverter, SimpleConversion
 
 
 def process_cisco_grpc_msg(new_msg):
@@ -30,10 +33,6 @@ def process_cisco_grpc_msg(new_msg):
 
 
 class EncodingNotFound(PmgrpcdException):
-    pass
-
-
-class AmbiguousContent(PmgrpcdException):
     pass
 
 
@@ -67,9 +66,8 @@ class CiscoGrpcGPB(DictSubTreeData):
     """
     This is a cisco general grpc based on the telemetry grpc in:
     """
-
     data_json_key = "data_json"
-    data_gpvkv_key = "data_gpbkv"
+    data_gpbkv_key = "data_gpbkv"
     data_comp_key = "data"
 
     def infer_encoding(self) -> CiscoEncodings:
@@ -78,7 +76,7 @@ class CiscoGrpcGPB(DictSubTreeData):
         """
         data_dict = {
             CiscoEncodings.JSON: self.data_json,
-            CiscoEncodings.GPBVK: self.data_gpvkv,
+            CiscoEncodings.GPBVK: self.data_gpbkv,
             CiscoEncodings.COMPACT: self.data_comp,
         }
         if len([x for x in data_dict.values() if x is not None]) > 1:
@@ -95,9 +93,9 @@ class CiscoGrpcGPB(DictSubTreeData):
 
     @property
     def data_gpbkv(self):
-        if self.data_gpvkv_key not in self.data:
+        if self.data_gpbkv_key not in self.data:
             return None
-        return self.data[self.data_gpvkv_key]
+        return self.data[self.data_gpbkv_key]
 
     @property
     def data_comp(self):
@@ -149,13 +147,6 @@ class CiscoGrpcGPB(DictSubTreeData):
     #                decoded_content[header] = value
     #    return cls(decoded_content)
 
-class BaseConverter:
-
-    def convert(self, metric, warnings=None):
-        transformation = list(self.transform(metric, warnings))
-        if len(transformation) != 1:
-            raise Exception("Transformation returns more than one lement")
-        return transformation[0]
 
 class GrpcRawToCiscoGrpcGPB(BaseConverter):
     RESULTING_CLASS = CiscoGrpcGPB
@@ -189,30 +180,6 @@ class GrpcRawGPBToCiscoGrpcGPB(GrpcRawToCiscoGrpcGPB):
         return decoded_content
 
     
-class SimpleConversion(BaseConverter):
-    '''
-    Base for a transformation that basically "casts" one metric to another.
-    This could be similar to using  object.__class__ = NewClass, 
-    but it looks less hacky.
-    Abstract handeling from https://stackoverflow.com/questions/45248243/most-pythonic-way-to-declare-an-abstract-class-property
-    '''
-    ORIGINAL_CLASS = NotImplemented
-    RESULTING_CLASS = NotImplemented
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-
-        if cls.ORIGINAL_CLASS is NotImplemented:
-            raise NotImplementedError('Please define the original class')
-        if cls.RESULTING_CLASS is NotImplemented:
-            raise NotImplementedError('Please define the resulting class')
-
-    def transform(cls, metric, warnings=None):
-        data = metric.data.copy()
-        # Have empty content, if not available.
-        if cls.RESULTING_CLASS.content_key not in data:
-            data[cls.RESULTING_CLASS.content_key] = []
-        return [cls.RESULTING_CLASS(data)]
 
 
 class CiscoGrpcJson(DictSubTreeData):
@@ -225,6 +192,18 @@ class CiscoGrpcJson(DictSubTreeData):
             if option in self.data:
                 return self.data[option]
         raise KeyError("No subscription found")
+
+
+    @property
+    def data_json(self):
+        return self.data.get("data_json", None)
+
+    @property
+    def content(self):
+        """
+        We assume content is in data_gpbkv. This can change in later versions.
+        """
+        return self.data_json or []
 
 class CiscoGrpcJsonToCiscoElement:
 
@@ -264,9 +243,19 @@ class CiscoGrpcKV(DictSubTreeData):
     content_key = "data_gpbkv"
     element_class = CiscoElement
 
-    def __init__(self, data, pivoter=None):
-        self.pivoter = pivoter
+    def __init__(self, data):
         super().__init__(data)
+
+    @property
+    def data_gpbkv(self):
+        return self.data.get("data_gpbkv", None)
+
+    @property
+    def content(self):
+        """
+        We assume content is in data_gpbkv. This can change in later versions.
+        """
+        return self.data_gpbkv or []
 
     #@classmethod
     #def from_cisco_grpc_gpb(
@@ -338,6 +327,10 @@ class NXElement(CiscoElement):
     #        data[self.content_key] = new_content
     #        yield CiscoElement(data)
 
+class CiscoElementToNXElement(SimpleConversion):
+    ORIGINAL_CLASS = CiscoElement
+    RESULTING_CLASS = NXElement
+
 
 class NxGrpcGPB(CiscoGrpcGPB):
     """
@@ -356,9 +349,9 @@ class NxGrpcGPB(CiscoGrpcGPB):
     @property
     def content(self):
         """
-        We assume content is in data_gpvkv. This can change in later versions.
+        We assume content is in data_gpbkv. This can change in later versions.
         """
-        return self.data_gpvkv or []
+        return self.data_gpbkv or []
 
 class GrpcRawToNxGrpcGPB(GrpcRawGPBToCiscoGrpcGPB):
     RESULTING_CLASS = NxGrpcGPB

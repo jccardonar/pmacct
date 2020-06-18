@@ -28,6 +28,9 @@ class KeyErrorMetric(MetricException):
 class AttrNotFound(MetricException):
     pass
 
+class AmbiguousContent(AttrNotFound):
+    pass
+
 class SubTreeData(ABC):
     """
     Represents a generic subtree of data. This describes the most generic
@@ -64,8 +67,20 @@ class SubTreeData(ABC):
         raise NotImplementedError
 
     @property
+    def module(self) -> Optional[str]:
+        '''
+        Get the module from the fist step on the xpath. 
+        TODO: We need a proper xpath parser.
+        '''
+        if ":" in self.path:
+            return self.path.split(":")[0]
+        return None
+
+
+
+    @property
     @abstractmethod
-    def path(self):
+    def path(self) -> str:
         """
         Point of the model from which the data subtree is located.
         """
@@ -88,6 +103,7 @@ class SubTreeData(ABC):
         Id of node originating the metric. 
         """
         raise NotImplementedError
+
 
     @property
     @abstractmethod
@@ -205,6 +221,10 @@ class DictSubTreeData(SubTreeData):
 
     @dict_attribute
     def node_id(self):
+        pass
+
+    @dict_attribute
+    def collection_timestamp(self):
         pass
 
     #@property

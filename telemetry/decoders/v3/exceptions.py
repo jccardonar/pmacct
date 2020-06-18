@@ -1,0 +1,3 @@
+class PmgrpcdException(Exception):
+    pass
+

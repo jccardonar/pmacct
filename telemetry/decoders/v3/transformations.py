@@ -1,9 +1,10 @@
 from encoders.base import ValueField, Field, InternalMetric, MetricExceptionBase
-from typing import Iterable, Sequence, Dict, Union, Any, Generator, Tuple
+from typing import Iterable, Sequence, Dict, Union, Any, Generator, Tuple, Optional
 from abc import ABC, abstractmethod
 from enum import Flag, auto
 import ujson as json
 from pygtrie import CharTrie
+from base_transformation import MetricTransformationBase, TransformationException
 
 RANGE_NUMERS = [str(x) for x in range(0, 100)]
 HIERARCHICAL_TYPES = (dict, list)
@@ -137,43 +138,6 @@ def load_transformtions_from_file(json_file):
 class FailingOnWarning(Exception):
     pass
 
-class MetricTransformationBase(ABC):
-    def __init__(self, data_per_path):
-        self.data_per_path = data_per_path
-        self._warning = None
-
-    def set_warning_function(self, warning_function):
-        self._warning = warning_function
-
-    def warning(self, warning):
-        """
-        Warnings are msg per packet. They could be logged or used in metrics if needed.
-        """
-        if self._warning is None:
-            return
-
-        # should we catch a failure here, what to do?
-        try:
-            self._warning(warning)
-        except:
-            pass
-
-    @abstractmethod
-    def transform(self, metric) -> Sequence["InternalMetric"]:
-        pass
-
-    def transform_list(self, generator):
-        """
-        Takes a generator of metrics and transforms. 
-        Since the split transformations return, the auxiliary Generator keeps 
-        the return value so we can return it.
-        to do  "= yield from"
-        """
-        # TODO: modify the namme Generator, it is part of typing
-        generagtor_with_return = Generator(generator)
-        for metric in generagtor_with_return:
-            yield from self.transform(metric)
-        return generagtor_with_return.value
 
 
 class TransformationPerEncodingPath(MetricTransformationBase):
@@ -213,13 +177,21 @@ class OptionsFields(Flag):
     HIERARCHIES = LISTS | FIELDS
 
 
+# what to select:
+# by leaf name, by leaf substring, by type of node (leaf, hiearchy, list, field)
+# by encoding path
+
+
 class ContentTransformation(MetricTransformationBase):
     """
     General classes that transform content (do not yield multiple,metrics, only one transformed)
     It first transforms the hierachically fields, in order, for instance, to flatten internal hierarchies first and then the current
     """
 
-    def __init__(self, options, paths):
+    def __init__(self, options, paths, leaf_names=None):
+        if leaf_names is None:
+            leaf_names = set()
+        self.leaf_names = leaf_names
         self.options = OptionsFields.NO_OPTION
         self.transform_list_elements = True
         for option_str in options:
@@ -228,12 +200,17 @@ class ContentTransformation(MetricTransformationBase):
         super().__init__(paths)
 
     def has_node(self, path):
+        # if individual nammes are mamtched, then continue
+        if self.leaf_names:
+            return True
         if self.options.value > 0:
             # we have options, we need to look at everything.
             return True
         return self.data_per_path.has_node(path) > 0
 
     def has_key(self, path, key, value):
+        if self.leaf_names and key in self.leaf_names:
+            return (True, path)
         if self.options.value > 0:
             if isinstance(value, list) and OptionsFields.LISTS in self.options:
                 return (True, path)
@@ -323,6 +300,79 @@ class ContentTransformation(MetricTransformationBase):
     def transform_content(metric, fields, path, new_keys, key_state):
         pass
 
+class FieldTransformation(ContentTransformation):
+    '''
+    Defines the transformatin that should happen.
+    if you return None, the key will be removed
+    '''
+
+    @abstractmethod
+    def field_transformation(self, key, value):
+        pass
+
+    def transform_content(self, metric, fields, path, new_keys, key_state):
+        new_fields = fields.copy()
+        for key in new_keys:
+            value = fields[key]
+            new_value = self.field_transformation(key, value)
+            if new_value is None:
+                new_fields.pop(key, None)
+                continue
+            new_fields[key] = new_value
+        return new_fields
+
+class GenericFieldTransformation(FieldTransformation):
+    def __init__(self, *args, this_function, **kargs):
+        self.field_transformation = this_function
+        super().__init__(*args, **kargs)
+
+class ValueMapper(FieldTransformation):
+    '''
+    Maps values. Good for transforming enums from ints to strings, strings to strings, or viceversa.
+    '''
+    @abstractmethod
+    def field_transformation(self, key, value):
+        return self.mapper.get(value, self.default)
+
+    def __init__(self, mapper: Dict[Any, Any], default: Optional[Any], *args, **kargs):
+        if not mapper or not isinstance(mapper, dict):
+            raise TransformationException("ValueMapper requires a mapper and a default")
+        self.mapper = mapper
+        self.default = default
+        super().__init__(*args, **kargs)
+
+class ConvertToList(FieldTransformation):
+    '''
+    Forces a container to be a list.
+    We enclosure the value into a list.
+    '''
+    def field_transformation(self, key, value):
+        if not isinstance(value, list):
+            return [value]
+        return value
+
+class ConvertToint(FieldTransformation):
+    def field_transformation(self, key, value):
+        # we fail here if we cannot convert
+        try:
+            new_value = int(value)
+        except:
+            raise TransformationException("We could not convert value to int")
+        return new_value
+
+
+class WrapContent:
+    '''
+    This is a lazy version of something that would "move up" the encoding path.
+    The encoding path would need to be changed in other transformtion.
+    '''
+    def __init__(self, container):
+        super().__init__(None)
+        self.containers = container
+
+    def transform(self, metric):
+        yield metric.replace(content={self.container: metric.content})
+        
 
 class FieldToString(ContentTransformation):
     @staticmethod
@@ -341,6 +391,7 @@ class FieldToString(ContentTransformation):
 
             new_fields[key] = new_value
         return new_fields
+
 
 
 class FlattenningLists(MetricExceptionBase):
@@ -404,6 +455,7 @@ class TransformationPipeline(MetricTransformationBase):
         for trf in self.transformations:
             gen = trf.transform_list(gen)
         yield from gen
+
 
 
 class KeysFlattenOverlap(MetricExceptionBase):
@@ -638,14 +690,6 @@ class RenameKeys(MetricTransformationBase):
                 metric.add_to_flatten(current_keys, new_key, value)
         yield metric.replace(keys=current_keys)
 
-
-# from https://stackoverflow.com/questions/34073370/best-way-to-receive-the-return-value-from-a-python-generator
-class Generator:
-    def __init__(self, gen):
-        self.gen = gen
-
-    def __iter__(self):
-        self.value = yield from self.gen
 
 
 class MetricSpliting(MetricTransformationBase):

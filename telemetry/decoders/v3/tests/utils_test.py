@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Union
+from metric_types.base_types import AttrNotFound, KeyErrorMetric
 
 
 def data_folder(base=None):
@@ -40,22 +41,40 @@ def load_dump_line(file_name: Union[Path, str], line_number: int):
         raise TelemetryTests(f"Line {line_number} is not valid. {file_name} has {len(content)} lines")
     return content[line_number-1]
 
+# Next are basic tests
 
-BASIC_PROPERTIES = ["collection_timestamp", "collection_end_time", "collection_start_time", "msg_timestamp", "collection_id", "path", "node_id", "subscription_id"]
+BASIC_PROPERTIES = ["collection_timestamp", "collection_end_time", "collection_start_time", "msg_timestamp", "collection_id", "path", "node_id", "subscription_id", "content", "data"]
 
-def check_metric_properties(metric):
+def check_metric_properties(metric, mandatory):
     '''
     Test the basic metric properties.
     No matter the result, it should not raise an exception
     '''
     failing_attr = []
-    for attr in BASIC_PROPERTIES:
+    for attr in mandatory:
         try:
             _ = getattr(metric, attr)
         except:
             failing_attr.append(attr)
+            raise
     return failing_attr
 
 
+def check_basic_properties(metric, properties=BASIC_PROPERTIES):
+    '''
+    Test the basic metric properties.
+    No matter the result, it should not raise an exception
+    '''
+    failing_attr = []
+    for attr in properties:
+        try:
+            _ = getattr(metric, attr)
+        except AttrNotFound as e:
+            pass
+        except KeyErrorMetric  as e:
+            pass
+        except:
+            failing_attr.append(attr)
+    return failing_attr
 
 

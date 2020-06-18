@@ -143,6 +143,7 @@ def huawei_processing(grpcPeer, new_msg):
         # L2:
         for new_row in telemetry_msg.data_gpb.row:
             # PMGRPCDLOG.info("NEW_ROW: %s" % (new_row))
+            # the next converts the object into a dict (x.timestamp, x.content) -> {"timestamp": x, "content": x}
             new_row_header_dict = MessageToDict(
                 new_row,
                 including_default_value_fields=True,
