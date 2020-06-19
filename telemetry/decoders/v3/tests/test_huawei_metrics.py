@@ -2,8 +2,8 @@ import pytest
 from .utils_test import (
     data_folder,
     load_dump_file,
-    check_metric_properties,
-    check_basic_properties,
+    AbstractTestMetric,
+    pytest_generate_tests
 )
 from metric_types.huawei_metrics import (
     HuaweiGrpcGPB,
@@ -19,14 +19,16 @@ DATA_FOLDER = data_folder()
 HUAWEI_DUMP_FOLDER = DATA_FOLDER / "huawei_dumps"
 HUAWEI_FILES = [x for x in HUAWEI_DUMP_FOLDER.iterdir() if x.is_file()]
 
+
+
 HUAWEICOMPACT_EXAMPLES = [
     {
         "node_id_str": "example",
         "subscription_id_str": "DAISY",
         "sensor_path": "openconfig-interfaces:interfaces/interface/state/counters",
         "collection_id": "7562022",
-        "collection_start_time": "1565030039335",
-        "msg_timestamp": "1565030039435",
+        "collection_start_time": 1565030039335,
+        "msg_timestamp": 1565030039435,
         "data_gpb": {
             "row": [
                 {
@@ -46,20 +48,33 @@ HUAWEICOMPACT_EXAMPLES = [
 ]
 
 
-@pytest.fixture(params=HUAWEICOMPACT_EXAMPLES)
-def grpc_metric(request):
-    return HuaweiGrpcGPB(request.param)
+class TestBasicHuaweiGrpcGPB(AbstractTestMetric):
+    CLS = HuaweiGrpcGPB
+    metrics = HUAWEICOMPACT_EXAMPLES
+    mandatory_property = [
+        "path",
+        "node_id",
+        "subscription_id",
+        "collection_end_time",
+        "collection_start_time",
+        "msg_timestamp",
+        "data_gpb",
+    ]
 
 
-HUAWEI_GPB_MANDATORY = [
-    "path",
-    "node_id",
-    "subscription_id",
-    "collection_end_time",
-    "collection_start_time",
-    "msg_timestamp",
-    "data_gpb",
-]
+class TestBasicHuaweiCompact(AbstractTestMetric):
+    CLS = HuaweiCompact
+    metrics = HUAWEICOMPACT_EXAMPLES
+    mandatory_property = [
+        "path",
+        "node_id",
+        "subscription_id",
+        "collection_end_time",
+        "collection_start_time",
+        "msg_timestamp",
+        "data_gpb",
+        "content"
+    ]
 
 
 def metric_huawei(metric):
@@ -99,19 +114,11 @@ def metric_element(metric):
     metric.module
     metric.content
 
-@pytest.fixture(params=HUAWEICOMPACT_EXAMPLES)
-def huawei_compact_metrics(request):
-    return HuaweiCompact(request.param)
-
+#@pytest.fixture(params=HUAWEICOMPACT_EXAMPLES)
+#def huawei_compact_metrics(request):
+#    return HuaweiCompact(request.param)
 
 class TestHuaweiGPB:
-    def test_cisco_grpc_mandatory(self, grpc_metric):
-        failed_attributes = check_metric_properties(grpc_metric, HUAWEI_GPB_MANDATORY)
-        assert not failed_attributes
-
-    def test_cisco_grpc_basic(self, grpc_metric):
-        failed_attributes = check_basic_properties(grpc_metric)
-        assert not failed_attributes
 
     @pytest.mark.parametrize("file_name", HUAWEI_FILES)
     def test_creation(self, file_name):
@@ -143,16 +150,6 @@ def huawei_decoder_constructor(huawei_decoder_map):
 
 
 class TestHuaweiCompact:
-    def test_cisco_grpc_mandatory(self, huawei_compact_metrics):
-        failed_attributes = check_metric_properties(
-            huawei_compact_metrics, HUAWEI_GPB_MANDATORY
-        )
-        assert not failed_attributes
-
-    def test_cisco_grpc_basic(self, huawei_compact_metrics):
-        failed_attributes = check_basic_properties(huawei_compact_metrics)
-        assert not failed_attributes
-
     @pytest.mark.parametrize("file_name", HUAWEI_FILES)
     def test_creation(self, file_name, huawei_decoder_constructor):
         content = load_dump_file(file_name).split("\n")

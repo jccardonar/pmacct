@@ -136,6 +136,12 @@ class SubTreeData(ABC):
         """
         raise NotImplementedError
 
+    def to_dict(self, normalized=False):
+        '''
+        Returns the data in python dict form.
+        '''
+        raise NotImplementedError
+
 
 # Since we normally  store the data of the metrics in a python dict,
 # the next classes provide a shortcut for fetching most of the
@@ -311,6 +317,15 @@ class DictSubTreeData(SubTreeData):
             raise KeyErrorMetric(f"Error getting {name}, no key {key}")
         return self.data[key]
 
+    def replace(self, content=None, keys=None, path=None):
+        new_data = self.data.copy()
+        if content is not None:
+            new_data[self.content_key] = content
+        if keys is not None:
+            new_data[self.keys_key] = keys
+        if path is not None:
+            new_data[self.p_key] = path
+        return self.__class__(new_data)
 
 # The next could also be its own abstract class from SubTreeData, but to avoid multiple inheritance, we wont use it.
 class DictElementData(DictSubTreeData):

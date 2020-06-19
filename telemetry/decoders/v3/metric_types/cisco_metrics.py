@@ -342,6 +342,7 @@ class NxGrpcGPB(CiscoGrpcGPB):
     way of "pivoting" to the more typical relationships schema, but it is experimental and only tested 
     in a few paths.
     """
+    content_key = "data_gpbkv"
 
     def infer_nx_path(self):
         raise NotImplementedError
