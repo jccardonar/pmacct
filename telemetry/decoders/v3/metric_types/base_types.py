@@ -76,6 +76,11 @@ class SubTreeData(ABC):
             return self.path.split(":")[0]
         return None
 
+    @property
+    @abstractmethod
+    def collection_data(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
 
 
     @property
@@ -194,6 +199,7 @@ class DictSubTreeData(SubTreeData):
         "collection_id": "collection_id_key",
         "encoding": "encoding_type_key",
         "subscription": "subscription_id_key",
+        "collection_data": "collection_data_key",
     }
 
     content_key = "content"
@@ -207,6 +213,7 @@ class DictSubTreeData(SubTreeData):
     encoding_type_key = "encoding_type"
     msg_timestamp_key = "msg_timestamp"
     subscription_id_key = "subscription_id"
+    collection_data_key = "collection_data"
 
     def __init__(self, data: Dict[Any, Any]):
         self._data = data
@@ -236,6 +243,10 @@ class DictSubTreeData(SubTreeData):
     #@property
     #def node(self):
     #    return self.load_from_data(self.node_key, "node")
+
+    @property
+    def collection_data(self):
+        return self.load_from_data(self.collection_data_key, "collection_data", {})
 
     @property
     def msg_timestamp(self):
@@ -307,20 +318,24 @@ class DictSubTreeData(SubTreeData):
         attr_key = self.get_attr_key(attr)
         return self.load_from_data(attr_key, attr)
 
-    def load_from_data(self, key, name=None):
+    def load_from_data(self, key, name=None, **kargs):
         """
         Loads from the internal data.
         """
         if name is None:
             name = key
         if key not in self.data:
+            if "default" in kargs:
+                return kargs["default"]
             raise KeyErrorMetric(f"Error getting {name}, no key {key}")
         return self.data[key]
 
-    def replace(self, content=None, keys=None, path=None):
+    def replace(self, content=None, keys=None, path=None, collection_data=None):
         new_data = self.data.copy()
         if content is not None:
             new_data[self.content_key] = content
+        if collection_data is not None:
+            new_data[self.collection_data_key] = collection_data
         if keys is not None:
             new_data[self.keys_key] = keys
         if path is not None:

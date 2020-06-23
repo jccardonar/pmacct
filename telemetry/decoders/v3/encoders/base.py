@@ -111,11 +111,15 @@ class BaseEncoding(BaseMetrics, ABC):
     timestamp_key = "timestamp"
 
     def __init__(self, data: Dict[Any, Any]):
-        self.data = data
+        self._data = data
         try:
             self.content
         except:
             raise BaseEncodingException("Content not found")
+
+    @property
+    def data(self):
+        return self._data
 
     @abstractmethod
     def get_internal(self, *args, **kargs) -> "InternalMetric":
@@ -196,6 +200,9 @@ class InternalMetric(BaseEncoding):
     def __init__(self, data):
         super().__init__(data)
 
+    def __eq__(self, other):
+        return self.data == other.data
+
     def replace(self, content=None, keys=None, path=None):
         new_data = self.data.copy()
         if content is not None:
@@ -205,6 +212,12 @@ class InternalMetric(BaseEncoding):
         if path is not None:
             new_data[self.p_key] = path
         return InternalMetric(new_data)
+
+    def get_internal(self, *args, **kargs) -> "InternalMetric":
+        """
+        Gets an internal metric
+        """
+        
 
     def get_json(self):
         new_data = self.data.copy()

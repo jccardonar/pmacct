@@ -112,7 +112,9 @@ class AbstractTestMetric:
         "subscription_id",
         "content",
         "data",
+        "collection_data",
     ]
+
 
     @classmethod
     def constructor(cls, value):
@@ -170,6 +172,7 @@ class AbstractTestMetric:
             ["content", "content_key", {"a": "test"}],
             ["path", "p_key", "new_path"],
             ["keys", "keys_key", {"k": 9}],
+            ["collection_data", "collection_data_key", {"k": 9}],
         ],
     )
     def test_replace(self, metric, prop, key_prop, new_value_reference):

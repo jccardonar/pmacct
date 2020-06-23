@@ -149,14 +149,29 @@ class TransformationPerEncodingPath(MetricTransformationBase):
         self.default = default
         super().__init__(None)
 
-    def transform(self, metric):
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
         # here, it would be possible to have multiple cases. But that is not the idea.
         transformation = self.transformation_per_path.get(metric.path, self.default)
         if transformation:
-            yield from transformation.transform(metric)
+            yield from transformation.transform(metric, warnings)
         else:
             yield metric
 
+class EqualTransformation(MetricTransformationBase):
+    '''
+    Used for cases where we apply a transformation but we
+    just want the same metric
+    '''
+    def __init__(self):
+        super().__init__({})
+
+    def transform(self, metric):
+        yield metric
+
+# A global is fine to avoid extra constructors
+EQUAL_TRANSFORMATION = EqualTransformation()
 
 class FilterMetric(MetricTransformationBase):
     """
@@ -164,7 +179,7 @@ class FilterMetric(MetricTransformationBase):
     but we dont need the now.
     """
 
-    def transform(self, metric):
+    def transform(self, metric, warnings=None):
         if metric.path in self.data_per_path:
             return
         yield metric
@@ -220,12 +235,14 @@ class ContentTransformation(MetricTransformationBase):
             return (True, path)
         return (False, path)
 
-    def transform(self, metric):
-        fields = self._transform_contents(metric, metric.content, metric.path)
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
+        fields = self._transform_contents(metric, metric.content, metric.path, warnings)
         yield metric.replace(content=fields)
 
     def _transform_contents(
-        self, metric, fields: Union[Sequence[Field], Field], path: str
+        self, metric, fields: Union[Sequence[Field], Field], path: str, warnings
     ):
         """
         This function is a generator that also returns values.
@@ -247,7 +264,7 @@ class ContentTransformation(MetricTransformationBase):
                 if not isinstance(field, HIERARCHICAL_TYPES):
                     nlist.append(field)
                     continue
-                ncontents = self._transform_contents(metric, field, path)
+                ncontents = self._transform_contents(metric, field, path, warnings)
                 if ncontents:
                     nlist.append(ncontents)
             # nothing else to do
@@ -285,7 +302,7 @@ class ContentTransformation(MetricTransformationBase):
                     continue
                 # we yield all internal keys, then we replace
                 # the value if there was any change.
-                ncontents = self._transform_contents(metric, fcontent, n_path)
+                ncontents = self._transform_contents(metric, fcontent, n_path, warnings)
                 fields.pop(fname, None)
                 # not write the new field if empty
                 if ncontents:
@@ -293,11 +310,11 @@ class ContentTransformation(MetricTransformationBase):
 
         # now convert the fields, only if there are matches.
         if new_keys:
-            fields = self.transform_content(metric, fields, path, new_keys, key_state)
+            fields = self.transform_content(metric, fields, path, new_keys, key_state, warnings)
         return fields
 
     @abstractmethod
-    def transform_content(metric, fields, path, new_keys, key_state):
+    def transform_content(metric, fields, path, new_keys, key_state, warnings):
         pass
 
 class FieldTransformation(ContentTransformation):
@@ -310,7 +327,7 @@ class FieldTransformation(ContentTransformation):
     def field_transformation(self, key, value):
         pass
 
-    def transform_content(self, metric, fields, path, new_keys, key_state):
+    def transform_content(self, metric, fields, path, new_keys, key_state, warnings):
         new_fields = fields.copy()
         for key in new_keys:
             value = fields[key]
@@ -382,7 +399,7 @@ class FieldToString(ContentTransformation):
             return new_value
         return json.dumps(value)
 
-    def transform_content(self, metric, fields, path, new_keys, key_state):
+    def transform_content(self, metric, fields, path, new_keys, key_state, warnings):
         new_fields = fields.copy()
         for key in new_keys:
             value = fields[key]
@@ -407,7 +424,7 @@ class FlattenFunctions:
     Flatten functions. Choosing inheritance over composition here.
     """
 
-    def find_name(self, fields, key, ckey, path) -> str:
+    def find_name(self, fields, key, ckey, path, warnings) -> str:
         prefix = ""
         if self.keep_naming:
             prefix = key
@@ -417,7 +434,7 @@ class FlattenFunctions:
             base_name = ckey
         name = None
         if base_name in fields:
-            self.warning(
+            warnings.append(
                 ExistingNameInFlattening(
                     "Base name for flattening exists",
                     {"base": base_name, "path": path, "child_key": ckey},
@@ -450,10 +467,12 @@ class TransformationPipeline(MetricTransformationBase):
         for trs in self.transformations:
             trs.set_warning_function(warning_function)
 
-    def transform(self, metric):
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
         gen = iter([metric])
         for trf in self.transformations:
-            gen = trf.transform_list(gen)
+            gen = trf.transform_list(gen, warnings)
         yield from gen
 
 
@@ -476,8 +495,8 @@ class FlattenHeaders(MetricTransformationBase, FlattenFunctions):
         self.keep_naming = False
         super().__init__(None)
 
-    def add_to_field(self, fields, key, value, path):
-        nname = self.find_name(fields, "keys", key, path)
+    def add_to_field(self, fields, key, value, path, warnings):
+        nname = self.find_name(fields, "keys", key, path, warnings)
         if nname in fields:
             raise ExistingNameInFlattening(
                 "Find name returned an existing value",
@@ -485,32 +504,34 @@ class FlattenHeaders(MetricTransformationBase, FlattenFunctions):
             )
         fields[nname] = value
 
-    def transform(self, metric):
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
         new_fields = {}
-        self.flatten_keys(metric.keys, metric.path, new_fields)
+        self.flatten_keys(metric.keys, metric.path, new_fields, warnings)
         self.add_to_field(
-            new_fields, metric.timestamp_key, metric.timestamp, metric.path
+            new_fields, metric.timestamp_key, metric.timestamp, metric.path, warnings
         )
-        self.add_to_field(new_fields, metric.node_key, metric.node, metric.path)
+        self.add_to_field(new_fields, metric.node_key, metric.node, metric.path, warnings)
 
         # now the content
         for key, value in metric.content.items():
-            self.add_to_field(new_fields, key, value, metric.path)
+            self.add_to_field(new_fields, key, value, metric.path, warnings)
 
         yield metric.replace(content=new_fields)
 
-    def flatten_keys(self, keys, path, new_fields):
+    def flatten_keys(self, keys, path, new_fields, warnings):
         for key, value in keys.items():
             if isinstance(value, list):
                 for svalue in value:
-                    self.add_to_field(new_fields, key, value, path)
-                self.warning(
+                    self.add_to_field(new_fields, key, value, path, warnings)
+                warnings.append(
                     KeysWithDoubleName(
                         "Keys with the same name", {"name": key, "path": path}
                     )
                 )
                 continue
-            self.add_to_field(new_fields, key, value, path)
+            self.add_to_field(new_fields, key, value, path, warnings)
 
 
 class InvalidFlatteningPath(MetricExceptionBase):
@@ -530,7 +551,7 @@ class FlattenHierarchies(ContentTransformation, FlattenFunctions):
         self.keep_naming = keep_naming
         self.transform_list_elements = True
 
-    def transform_content(self, metric, fields, path, new_keys, key_state):
+    def transform_content(self, metric, fields, path, new_keys, key_state, warnings):
         new_fields = fields.copy()
         # the sorted makes this a bit more deterministic
         for key in sorted(new_keys):
@@ -539,7 +560,7 @@ class FlattenHierarchies(ContentTransformation, FlattenFunctions):
             kpath = key_state[key]
 
             if not isinstance(value, HIERARCHICAL_TYPES):
-                self.warning(
+                warnings.append(
                     InvalidFlatteningPath(
                         "Ignoring flattening path, it is not a list or a field",
                         {"path": kpath},
@@ -551,14 +572,14 @@ class FlattenHierarchies(ContentTransformation, FlattenFunctions):
 
             #           # deal with lists
             if isinstance(value, list):
-                self.warning(FlattenningLists("Flattening lists", {"path": kpath}))
+                warnings.append(FlattenningLists("Flattening lists", {"path": kpath}))
                 nvalue = FieldToString.string_field(value)
                 new_fields[key] = nvalue
                 continue
 
             # this must be a dict, that should be already flatten
             for ckey, cvalue in value.items():
-                nname = self.find_name(new_fields, key, ckey, kpath)
+                nname = self.find_name(new_fields, key, ckey, kpath, warnings)
                 if nname in new_fields:
                     raise ExistingNameInFlattening(
                         "Find name returned an existing value",
@@ -600,7 +621,7 @@ class CombineContentTransformation(ContentTransformation):
                 global_state[n] = state
         return (global_has_key, global_state)
 
-    def transform_content(self, metric, fields, path, new_keys, key_state):
+    def transform_content(self, metric, fields, path, new_keys, key_state, warnings):
         new_fields = fields.copy()
         # we need to do a conversion here, which is a pity
         state_per_transformer = {}
@@ -612,7 +633,7 @@ class CombineContentTransformation(ContentTransformation):
             state = state_per_transformer[n]
             transformation = self.transformations[n]
             new_fields = transformation.transform_content(
-                metric, new_fields, path, state, state
+                metric, new_fields, path, state, state, warnings
             )
         return new_fields
 
@@ -625,7 +646,7 @@ class RenameContent(ContentTransformation):
     def __init__(self, paths):
         super().__init__([], paths)
 
-    def transform_content(self, metric, fields, path, new_keys, key_state):
+    def transform_content(self, metric, fields, path, new_keys, key_state, warnings):
         new_fields = fields.copy()
         for key in new_keys:
             path = key_state[key]
@@ -634,7 +655,7 @@ class RenameContent(ContentTransformation):
                 new_fields.pop(key, None)
                 continue
             if new_key in new_fields:
-                self.warning(
+                warnings.append(
                     ExsitingName(
                         "Name already exists in path", {"path": path, "name": new_key}
                     )
@@ -650,7 +671,7 @@ class RKEWrongType(MetricExceptionBase):
 
 
 class RenameKeys(MetricTransformationBase):
-    def transform(self, metric):
+    def transform(self, metric, warnings=None):
         """
         Simply modify the keys.
         If the list contain an index not present in the actual keys, this is ignored.
@@ -698,8 +719,10 @@ class MetricSpliting(MetricTransformationBase):
     It "splits" the current metric then it repeats the operation with the internal ones (in order for the next to, for instance, have the proper new keys)
     """
 
-    def transform(self, metric):
-        fields, changed = yield from self._split(metric, metric.content, metric.path)
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
+        fields, changed = yield from self._split(metric, metric.content, metric.path, warnings)
         if changed:
             if fields:
                 yield metric.replace(content=fields)
@@ -719,10 +742,10 @@ class MetricSpliting(MetricTransformationBase):
         return (path in self.data_per_path, path)
 
     @abstractmethod
-    def split(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
+    def split(self, metric, fields, path, keys, key_state, warnings) -> Sequence[InternalMetric]:
         pass
 
-    def _split(self, metric, fields: Union[Sequence[Field], Field], path: str):
+    def _split(self, metric, fields: Union[Sequence[Field], Field], path: str, warnings):
         """
         This function is a generator that also returns values.
         The return includes the new set of fields, and a bool marking whether
@@ -739,7 +762,7 @@ class MetricSpliting(MetricTransformationBase):
         if isinstance(fields, list):
             nlist = []
             for field in fields:
-                ncontents, cchanged = yield from self._split(metric, field, path)
+                ncontents, cchanged = yield from self._split(metric, field, path, warnings)
                 if cchanged:
                     changed = True
                 if ncontents:
@@ -773,7 +796,7 @@ class MetricSpliting(MetricTransformationBase):
         if new_keys:
             # we need to split the metric here.
             new_content, changed = yield from self.split(
-                metric, fields, path, new_keys, key_state
+                metric, fields, path, new_keys, key_state, warnings
             )
             # we return empty.
             return new_content, changed
@@ -788,7 +811,7 @@ class MetricSpliting(MetricTransformationBase):
                     continue
                 # we yield all internal splits, then we replace
                 # the value if there was any change.
-                ncontents, cchanged = yield from self._split(metric, fcontent, n_path)
+                ncontents, cchanged = yield from self._split(metric, fcontent, n_path, warnings)
                 if cchanged:
                     changed = True
                     fields.pop(fname, None)
@@ -800,7 +823,7 @@ class MetricSpliting(MetricTransformationBase):
 
 
 class ExtraKeysTransformation(MetricSpliting):
-    def split(self, metric, fields, path, new_keys, key_state):
+    def split(self, metric, fields, path, new_keys, key_state, warnings):
         current_keys = metric.keys
         new_keys = metric.add_keys(current_keys, new_keys)
         current_content = fields
@@ -817,13 +840,13 @@ class NotAList(MetricExceptionBase):
 
 
 class SplitLists(MetricSpliting):
-    def split(self, metric, fields, path, new_keys, key_state):
+    def split(self, metric, fields, path, new_keys, key_state, warnings):
         current_content = fields
         for key in new_keys:
             kpath = key_state[key]
             elements = current_content.pop(key, None)
             if not isinstance(elements, list):
-                self.warning(
+                warnings.append(
                     NotAList(
                         "Trying to split an element which is not a list", {"key": key}
                     )
@@ -868,7 +891,7 @@ class CombineTransformationSeries(MetricSpliting):
                 return (True, (n, state))
         return (False, (None, None))
 
-    def split(self, metric, fields, path, keys, key_state) -> Sequence[InternalMetric]:
+    def split(self, metric, fields, path, keys, key_state, warnings) -> Sequence[InternalMetric]:
         # here we apply only the first operation
         state_per_transform = {}
         for key, (n, state) in key_state.items():
@@ -877,7 +900,7 @@ class CombineTransformationSeries(MetricSpliting):
         state = state_per_transform[min_n]
         keys_content = {x: y for x, y in keys.items() if x in state}
         value = yield from self.transform_list(
-            self.transformations[min_n].split(metric, fields, path, keys_content, state)
+            self.transformations[min_n].split(metric, fields, path, keys_content, state, warnings)
         )
         return value
 
@@ -887,8 +910,10 @@ class MetricWarningDummy(MetricExceptionBase):
 
 
 class MetricTransformDummy(MetricTransformationBase):
-    def transform(self, metric):
-        self.warning(MetricWarningDummy("Dummy warning", {"df": 2}))
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
+        warnings.append(MetricWarningDummy("Dummy warning", {"df": 2}))
         yield metric
 
 

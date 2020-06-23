@@ -207,3 +207,58 @@ def FinalizeTelemetryData(dictTelemetryData):
         export_metrics(jsonTelemetryData)
 
     return jsonTelemetryData
+
+def finalize_telemetry_data(metric):
+    # Filter only config.
+    export = True
+    if lib_pmgrpcd.OPTIONS.onlyopenconfig:
+        PMGRPCDLOG.debug(
+            "only openconfig filter matched because of options.onlyopenconfig: %s"
+            % lib_pmgrpcd.OPTIONS.onlyopenconfig
+        )
+        export = False
+        if "openconfig" in metric.path:
+            export = True
+    if not export:
+        return
+
+    metrics = [metric]
+
+    warnings = []
+
+    # find mitigation
+    if TRANSFORMATIONS:
+        new_metrics = TRANSFORMATIONS.transform_list(metrics, warnings)
+        if not new_metrics:
+            raise exception
+        if warnings:
+            trace_warnings(warnings)
+        if errors:
+            if options.fail_on_single_error:
+                raise error
+            else:
+                trace_errors(errors)
+
+    warnings = []
+    new_metrics = mitigation.transform_list(new_metrics, warnings)
+    if warnings:
+        trace_warnings(warnings)
+    if errors:
+        if options.fail_on_single_error:
+            raise error
+
+
+    for n_metric in new_metrics:
+        try:
+            export_metrics2(n_metric)
+        except queuepul:
+            raise QueueFull
+
+
+def export_metrics2(metric):
+    try:
+        queue.put(metric, timeout)
+    except:
+        trace_warnings(queu_full)
+
+

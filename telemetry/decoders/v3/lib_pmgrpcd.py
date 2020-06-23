@@ -26,26 +26,60 @@
 import logging
 from pathlib import Path
 from types import MethodType
+from typing import Tuple
 
 SCRIPTVERSION = "1.4"
-
 
 
 PMGRPCDLOG = logging.getLogger("PMGRPCDLOG")
 OPTIONS = None
 MISSGPBLIB = {}
 
-TRACE_LEVEL = 5
-def add_trace_function_to_logger(logger):
+
+def parser_grpc_peer(peer: str) -> Tuple[str, str, str]:
     '''
+    Splits the GRPC peer name into parts.
+    >>> parser_grpc_peer("ipv6:[::1]:53236")
+    ('ipv6', '[::1]', '53236')
+    >>> parser_grpc_peer("ipv4:0.0.0.0:0")
+    ('ipv4', '0.0.0.0', '0')
+    >>> parser_grpc_peer('any randon stuff')
+    ('', 'any randon stuff', '')
+    >>> parser_grpc_peer('nosense:localhost')
+    ('nosense', 'localhost', '')
+    >>> parser_grpc_peer('no sense : with many ::: dots')
+    ('no sense ', ' with many ::', ' dots')
+    >>> parser_grpc_peer('no sense : with many ::: dots:')
+    ('no sense ', ' with many ::: dots', '')
+    '''
+    splitter = ":"
+    # we try to get the port
+    rest, separator, port = peer.rpartition(splitter)
+    if separator != splitter:
+        # if there is no :, we assume everything is the node.
+        return "", peer, ""
+    if splitter not in rest:
+        return rest, port, ""
+    # there must be a : here, we assume the first part is the protocol name (ipv4, ipv6)
+    protocol, separator, node = rest.partition(splitter)
+    return protocol, node, port
+
+
+TRACE_LEVEL = 5
+
+
+def add_trace_function_to_logger(logger):
+    """
     We "patch" a logger to have a tracer function with level 1 to emit msgs per packet.
     This is synthatic sugar for
     log(TRACE_LEVEL, msg, *args, **kargs)
     from https://block.arch.ethz.ch/blog/2016/07/adding-methods-to-python-classes/
-    '''
+    """
     logging.addLevelName(5, "TRACE")
+
     def trace(self, msg, *args, **kargs):
         return self.log(TRACE_LEVEL, msg, *args, **kargs)
+
     logger.trace = MethodType(trace, logger)
 
 
@@ -66,26 +100,28 @@ class CollectorState:
         # validation can fall here
         self._config_options = config_options
 
+
 STATE = None
+
 
 def get_state():
     if STATE is None:
         raise Exception("State has not been inizialized")
     return STATE
 
+
 def init_pmgrpcdlog(config_options):
     global PMGRPCDLOG, OPTIONS
     global STATE
-
 
     STATE = CollectorState(config_options)
 
     configure_logging()
 
+
 def configure_logging():
 
     config_options = get_state().config_options
-
 
     if config_options.logging_config_file:
         logging.config.fileConfig(config_options.logging_config_file)
@@ -93,7 +129,7 @@ def configure_logging():
         grformatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
-    
+
         add_trace_function_to_logger(PMGRPCDLOG)
 
         if config_options.debug:
@@ -101,12 +137,11 @@ def configure_logging():
         else:
             PMGRPCDLOG.setLevel(logging.INFO)
 
-
         # create file handler which logs even debug messages
         grfh = logging.FileHandler(config_options.PMGRPCDLOGfile)
-        #if config_options.debug:
+        # if config_options.debug:
         #    grfh.setLevel(logging.DEBUG)
-        #else:
+        # else:
         #    grfh.setLevel(logging.INFO)
 
         grfh.setFormatter(grformatter)
@@ -115,9 +150,9 @@ def configure_logging():
         if config_options.console:
             # create console handler with a higher log level
             grch = logging.StreamHandler()
-            #if config_options.debug:
+            # if config_options.debug:
             #    grch.setLevel(logging.DEBUG)
-            #else:
+            # else:
             #    grch.setLevel(logging.INFO)
 
             grch.setFormatter(grformatter)
@@ -166,3 +201,4 @@ def signalhandler(signum, frame):
     if signum == 12:
         PMGRPCDLOG.info("Signal handler called with USR2 signal: %s" % (signum))
         PMGRPCDLOG.info("TODO: %s" % ("todo"))
+

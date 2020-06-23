@@ -41,27 +41,49 @@ import openconfig_interfaces_pb2
 #if lib_pmgrpcd.OPTIONS.huawei and (not lib_pmgrpcd.OPTIONS.cenctype == 'gpbkv'):
 import huawei_telemetry_pb2
 
+def create_grpc_headers(context, vendor, processing, ulayer):
+    grpcPeer = {}
+    grpcPeerStr = context.peer()
+    (
+        grpcPeer["telemetry_proto"],
+        grpcPeer["telemetry_node"],
+        grpcPeer["telemetry_node_port"],
+    ) = lib_pmgrpcd.parser_grpc_peer(grpcPeerStr)
+    grpcPeer["ne_vendor"] = vendor
+    metadata = dict(context.invocation_metadata())
+    grpcPeer["user-agent"] = metadata["user-agent"]
+    # Example of grpcPeerStr -> 'ipv4:10.215.133.23:57775'
+    grpcPeer["grpc_processing"] = processing
+    grpcPeer["grpc_ulayer"] = ulayer
+    return grpcPeer
+
+
 
 class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServicer):
     def __init__(self):
         PMGRPCDLOG.info("Huawei: Initializing gRPCDataserviceServicer()")
 
     def dataPublish(self, message, context):
-        grpcPeer = {}
-        grpcPeerStr = context.peer()
-        (
-            grpcPeer["telemetry_proto"],
-            grpcPeer["telemetry_node"],
-            grpcPeer["telemetry_node_port"],
-        ) = grpcPeerStr.split(":")
-        grpcPeer["ne_vendor"] = "Huawei"
+
+        # Create grpc metadata
+        grpcPeer = create_grpc_headers(context, "Huawei", "huawei_grpc_dialout_pb2_grpc", "GPB Telemetry")
+        #grpcPeer = {}
+        #grpcPeerStr = context.peer()
+        #(
+        #    grpcPeer["telemetry_proto"],
+        #    grpcPeer["telemetry_node"],
+        #    grpcPeer["telemetry_node_port"],
+        #) = grpcPeerStr.split(":")
+        #grpcPeer["ne_vendor"] = "Huawei"
+
         PMGRPCDLOG.debug("Huawei MdtDialout Message: %s" % grpcPeer["telemetry_node"])
 
-        metadata = dict(context.invocation_metadata())
-        grpcPeer["user-agent"] = metadata["user-agent"]
-        # Example of grpcPeerStr -> 'ipv4:10.215.133.23:57775'
-        grpcPeer["grpc_processing"] = "huawei_grpc_dialout_pb2_grpc"
-        grpcPeer["grpc_ulayer"] = "GPB Telemetry"
+        #metadata = dict(context.invocation_metadata())
+        #grpcPeer["user-agent"] = metadata["user-agent"]
+        ## Example of grpcPeerStr -> 'ipv4:10.215.133.23:57775'
+        #grpcPeer["grpc_processing"] = "huawei_grpc_dialout_pb2_grpc"
+        #grpcPeer["grpc_ulayer"] = "GPB Telemetry"
+
         jsonTelemetryNode = json.dumps(grpcPeer, indent=2, sort_keys=True)
         PMGRPCDLOG.debug("Huawei RAW Message: %s" % jsonTelemetryNode)
 
@@ -82,6 +104,36 @@ class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServic
         return
         yield
 
+    def dataPublish2(self, message, context):
+
+        # Create grpc metadata
+        grpcPeer = create_grpc_headers(context, "Huawei", "huawei_grpc_dialout_pb2_grpc", "GPB Telemetry")
+
+        # the next is done once per connection, so it is fine.
+        PMGRPCDLOG.debug("Huawei MdtDialout Message: %s" % grpcPeer["telemetry_node"])
+        jsonTelemetryNode = json.dumps(grpcPeer, indent=2, sort_keys=True)
+
+        PMGRPCDLOG.debug("Huawei RAW Message: %s" % jsonTelemetryNode)
+
+        for new_msg in message:
+            collection_header = grpcPeer.copy()
+            received_time = int(round(time.time() * 1000))
+            collection_header["received_time"] = received_time
+            PMGRPCDLOG.debug("Huawei new_msg iteration message")
+            if lib_pmgrpcd.OPTIONS.ip:
+                if grpcPeer["telemetry_node"] != lib_pmgrpcd.OPTIONS.ip:
+                    continue
+                PMGRPCDLOG.debug(
+                    "Huawei: ip filter matched with ip %s"
+                    % (lib_pmgrpcd.OPTIONS.ip)
+                )
+            try:
+                huawei_processing2(collection_header, new_msg)
+            except Exception as e:
+                PMGRPCDLOG.debug("Error processing Huawei packet, error is %s", e)
+                continue
+        return
+        yield
 
 def huawei_processing(grpcPeer, new_msg):
     PMGRPCDLOG.debug("Huawei: Received GRPC-Data")
@@ -185,6 +237,109 @@ def huawei_processing(grpcPeer, new_msg):
                 returned = FinalizeTelemetryData(message_dict)
             except Exception as e:
                 PMGRPCDLOG.error("Error finalazing  message: %s", e)
+
+def huawei_processing2(grpcPeer, new_msg):
+
+    # dump the raw data, this has side effects.
+    if lib_pmgrpcd.OPTIONS.rawdatadumpfile:
+        PMGRPCDLOG.debug("Write rawdatafile: %s" % (lib_pmgrpcd.OPTIONS.rawdatadumpfile))
+        with open(lib_pmgrpcd.OPTIONS.rawdatadumpfile, "a") as rawdatafile:
+            rawdatafile.write(base64.b64encode(new_msg.data).decode())
+            rawdatafile.write("\n")
+
+    data = {"collection_data": grpcPeer, "content": new_msg.data}
+    raw_metric = GrpcRaw(data)
+    # here, we could provide some decoding options for proto
+    huawei_gpb_metric = GrpcRawGPBToHuaweiGrpcGPB().convert(raw_metric)
+
+    # The next part is to get the actual metric type and the 
+    # transformation to elements.
+    # Many metrics types send multiple measurements in a single packet.
+    # The idea is to split themm and treat them individually.
+    # If this is not desired, just use the EqualTransformation.
+    metric = None
+    to_element_transformation = None
+
+    if lib_pmgrpcd.OPTIONS.cenctype == "compact":
+        # here, we could provide some decoding options for proto
+        huawei_compact_metric = HuaweiGrpcGPBToHuaweiCompact().convert(huawei_gpb)
+        metric = huawei_compact_metric
+        decoder = huawei_decoder_constructor.get_decoder(metric.module)
+        to_element_transformation = HuaweCompactToHuaweiElements(decoder)
+
+
+    if metric is None or to_element_transformation is None:
+        raise Exception("Encoding not found, or failing assigning metric")
+    # The next is tracing and stats
+
+    for elem in to_element_transformation.transform(huawe_compact):
+        try:
+            returned = finalize_telemetry_data(message_dict)
+        except Exception as e:
+            PMGRPCDLOG.error("Error finalazing  message: %s", e)
+
+    #(proto, path) = message_header_dict["sensor_path"].split(":")
+    #(node_id_str) = message_header_dict["node_id_str"]
+    #(node_ip) = grpcPeer["telemetry_node"]
+    #(ne_vendor) = grpcPeer["ne_vendor"]
+
+    # Get the maching L3-Methode
+    #msg = select_gbp_methode(proto)
+    #if msg:
+    #    elem = len(telemetry_msg.data_gpb.row)
+    #    epochmillis = int(round(time.time() * 1000))
+    #    PMGRPCDLOG.info(
+    #        "EPOCH=%-10s NIP=%-15s NID=%-20s VEN=%-7s PT=%-22s ET=%-12s ELEM:%s"
+    #        % (epochmillis, node_ip, node_id_str, ne_vendor, proto, "GPB", elem)
+    #    )
+
+        # L2:
+        for new_row in telemetry_msg.data_gpb.row:
+            # PMGRPCDLOG.info("NEW_ROW: %s" % (new_row))
+            # the next converts the object into a dict (x.timestamp, x.content) -> {"timestamp": x, "content": x}
+            new_row_header_dict = MessageToDict(
+                new_row,
+                including_default_value_fields=True,
+                preserving_proto_field_name=True,
+                use_integers_for_enums=True,
+            )
+
+            if "content" in new_row_header_dict:
+                del new_row_header_dict["content"]
+
+            # L3:
+            msg.ParseFromString(new_row.content)
+            content = MessageToDict(
+                msg,
+                including_default_value_fields=True,
+                preserving_proto_field_name=True,
+                use_integers_for_enums=True,
+            )
+
+            message_dict = {}
+            message_dict.update(
+                {
+                    "collector": {
+                        "grpc": {
+                            "grpcPeer": grpcPeer["telemetry_node"],
+                            "ne_vendor": grpcPeer["ne_vendor"],
+                        }
+                    }
+                }
+            )
+            message_dict["collector"].update({"data": message_header_dict.copy()})
+            message_dict["collector"]["data"].update(new_row_header_dict)
+            message_dict.update(content)
+
+            allkeys = parse_dict(content, ret="", level=0)
+            PMGRPCDLOG.debug("Huawei: %s: %s" % (proto, allkeys))
+
+            try:
+                returned = FinalizeTelemetryData(message_dict)
+            except Exception as e:
+                PMGRPCDLOG.error("Error finalazing  message: %s", e)
+
+# TODO, probably better to have this in the object
 
 # TODO, probably better to have this in the object
 

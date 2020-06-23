@@ -36,8 +36,9 @@ def sort_data(data_list):
 class TestEncodingTransformation:
 
     # I dont want data and expected to be in the name since they are long
+    #def test_transformations(self, capsys, n, name):
     @pytest.mark.parametrize("n, name", TESTS.keys())
-    def test_transformations(self, capsys, n, name):
+    def test_transformations(self, n, name):
         config, data, expected = TESTS[(n, name)]
         sorted_expected = sort_data(expected)
         original_data = copy.deepcopy(data)
@@ -70,20 +71,26 @@ class TestEncodingTransformation:
         if transformation is None:
             pytest.fail("Found no transformation")
 
+        warnings = []
+
         if "exception" in config:
             with pytest.raises(MetricExceptionBase) as excinfo:
                 results = list(transformation.transform(metric))
             assert config["exception"] in str(excinfo.value)
             return
 
-        results = list(transformation.transform(metric))
+        results = list(transformation.transform(metric, warnings))
 
-        captured = capsys.readouterr()
+        #captured = capsys.readouterr()
         if "expected_warning" in config:
             for text in config["expected_warning"]:
-                assert text in captured.out
+                assert text in ".".join(str(x) for x in warnings)
         else:
-            assert not captured.out
+            assert not warnings
+
+        # make sure it works without warnings
+        results2 = list(transformation.transform(metric))
+        assert results == results2
 
         gotten_data = [x.data for x in results]
         sorted_gottan_data = sort_data(gotten_data)
