@@ -28,6 +28,7 @@ import configparser
 import os
 from datetime import datetime
 import sys
+import json
 
 # TODO we'll move the next into more appropiate places
 from lib_pmgrpcd import (
@@ -184,8 +185,17 @@ def serve():
             # Ugly, but we have to load just here because if not there is an exception due to a conflict between the cisco and huawei protos.
             from huawei_pmgrpcd import gRPCDataserviceServicer
 
+            # get mapper dict, or fail
+            huawei_mapping = None
+            if lib_pmgrpcd.OPTIONS.cenctype == "compact":
+                if not lib_pmgrpcd.OPTIONS.huawei_gbp_map:
+                    raise Exception("A Huawei gbp map is required for compact encoding")
+                with open(lib_pmgrpcd.OPTIONS.huawei_gbp_map, 'r') as fh:
+                    huawei_mapping = json.load(fh)
+            
+
             huawei_grpc_dialout_pb2_grpc.add_gRPCDataserviceServicer_to_server(
-                gRPCDataserviceServicer(), gRPCserver
+                gRPCDataserviceServicer(huawei_mapping), gRPCserver
             )
     else:
         PMGRPCDLOG.info("Huawei is disabled")

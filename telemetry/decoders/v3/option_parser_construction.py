@@ -79,17 +79,23 @@ def add_development(parser):
         help="this is to process manually (via mitigation) process a rawdatafile with a single rawrecord (for development)",
     )
 
+
 def add_proto_decoder(parser):
-    '''
+    """
     Elements used for the convertion of proto to python dict (and json).
-    '''
-    parser.add("--proto_uint64_to_str", action="store",
+    """
+    parser.add(
+        "--proto_uint64_to_str",
+        action="store",
         help="Defines if protos int64 fields should be converted to str. Defaults to false, that is, converted to ints",
     )
 
-    parser.add("--proto_enums_to_str", action="store",
+    parser.add(
+        "--proto_enums_to_str",
+        action="store",
         help="Defines if protos enums  should be converted to str. Defaults to false, that is, converted to ints.",
     )
+
 
 def add_grpc_server(parser):
     """
@@ -150,8 +156,9 @@ def add_input(parser):
         help="enable the grpc messages comming from Huawei",
     )
 
+    parser.add("--huawei_gbp_map", help="Json file with mappings for GPB decoding.")
+
     parser.add(
-        "-t",
         "--cenctype",
         type=str,
         dest="cenctype",
@@ -205,6 +212,21 @@ def add_output(parser):
         help="Boolean if kafkasimple should be enabled.",
     )
 
+    # multiprocess configuration
+    parser.add(
+        "--multiprocessing",
+        action="store_true",
+        help="Enable multiprocessing for the output",
+    )
+
+    parser.add(
+        "--ProcessPool",
+        dest="ProcessPool",
+        type=int,
+        help="Number of processes for the pool",
+    )
+
+
     parser.add(
         "--file_exporter_file",
         dest="file_exporter_file",
@@ -251,6 +273,14 @@ def add_logging(parser):
     )
 
     parser.add(
+        "-t",
+        "--trace",
+        action="store_true",
+        dest="trace",
+        help="Enables packet trace in logging",
+    )
+
+    parser.add(
         "-N",
         "--console",
         action="store_true",
@@ -260,10 +290,26 @@ def add_logging(parser):
 
     # The next are for packet events.
     # packet events will overflow any logging, therefore, we prefer to use metrics
-    # packet events can be of error or debug. 
-    parser.add("--log_packet_events", action="store_true", help="Logs packet events as debug")
-    parser.add("--send_metric_packet_events", action="store_true", help="Sends packet evetns to stats (requires stats_ipport to be configured)")
-    parser.add("--stats_ipport", help="Ip and port of stats server")
+    # packet events can be of error or debug.
+
+    parser.add(
+        "--metrics_server_enable",
+        action="store_true",
+        help="Sends packet evetns to stats (requires stats_ipport to be configured)",
+    )
+
+    parser.add("--metrics_ip", default="127.0.0.1", help="Ip and port of statsd server")
+
+    parser.add("--metrics_port", default=9125, help="Port of statsd server")
+
+    parser.add(
+        "--metrics_name_prefix", default="metric_collector", help="Prefix for metrics"
+    )
+
+    parser.add(
+        "--metrics_send_to_log", action="store_true", help="Print metrics also in logs."
+    )
+
 
 def add_kafka(parser):
     # Topic and servers
@@ -357,6 +403,16 @@ def add_transformation(parser):
         action="store_true",
         dest="mitigation",
         help="enable plugin mitigation mod_result_dict from python module mitigation.py",
+    )
+
+    parser.add(
+        "--mitigation_module",
+        help="Module including mitigation function",
+    )
+
+    parser.add(
+        "--mitigation_object_contructor",
+        help="Function to call to obtain a transformation.",
     )
 
     parser.add(

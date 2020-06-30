@@ -28,7 +28,8 @@ import os
 import ujson as json
 
 class FileExporter(Exporter):
-    def __init__(self, output_file):
+    def __init__(self, output_file, logger=None):
+        super().__init__(logger)
         self.output_file = output_file
 
     def process_metric(self, datajsonstring):

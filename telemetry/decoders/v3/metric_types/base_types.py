@@ -223,6 +223,8 @@ class DictSubTreeData(SubTreeData):
     #        property_key = self._keys[item]
     #        return self.load_from_data(property_key, item)
     #    super().__getattr__(item)
+    def to_dict(self):
+        return self.data
 
     @property
     def data(self):
@@ -307,6 +309,7 @@ class DictSubTreeData(SubTreeData):
         data = json.loads(json_string)
         return cls(data)
 
+
     @classmethod
     def get_attr_key(cls, attr):
         if attr not in cls._attr_to_key:
@@ -351,6 +354,7 @@ class DictElementData(DictSubTreeData):
     """
 
     keys_key = "keys"
+
 
     @property
     def keys(self):

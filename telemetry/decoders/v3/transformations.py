@@ -917,3 +917,45 @@ class MetricTransformDummy(MetricTransformationBase):
         yield metric
 
 
+
+class RemoveContentHierarchies(MetricTransformationBase):
+    '''
+    Forces content to be a dict, it might yield multiple metircs.
+        - if it is dict, it remains.
+        - if iti s a list, it yields a metric per element (and continious recursively)
+    '''
+    def transform(self, metric, warnings=None):
+        if warnings is None:
+            warnings = []
+        if isinstance(metric.content, dict):
+            yield metric
+        elif isinstance(metric.content, list):
+            for elem in metric.content:
+                new_metric = metric.replace(content=elem)
+                yield from self.transform(new_metric)
+        warnings.append(TransformationException("Found a type different from list or dict in content"))
+        yield metric
+
+
+def metric_to_json_dict(metric, content_base=True, content_key="content"):
+    '''
+    Returns a dict from a metric.
+    The dict should be converted to json later.
+    '''
+    if not content_base:
+        return metric.to_dict()
+
+    content = metric.content.copy()
+    if not isinstance(content, dict):
+        content = {content_key: content}
+    keys =None
+    try:
+        keys = getattr(metric,"keys", None)
+    except:
+        pass
+    if keys is not None and isinstance(keys, dict):
+        content.update(keys)
+    content.update(metric.headers)
+    return content
+
+

@@ -27,6 +27,9 @@ import logging
 from pathlib import Path
 from types import MethodType
 from typing import Tuple
+from statsd_metrics_exporter import StatsDMetricExporter
+from functools import wraps
+import inspect
 
 SCRIPTVERSION = "1.4"
 
@@ -34,6 +37,7 @@ SCRIPTVERSION = "1.4"
 PMGRPCDLOG = logging.getLogger("PMGRPCDLOG")
 OPTIONS = None
 MISSGPBLIB = {}
+METRIC_EXPORTER = None
 
 
 def parser_grpc_peer(peer: str) -> Tuple[str, str, str]:
@@ -118,8 +122,15 @@ def init_pmgrpcdlog(config_options):
 
     configure_logging()
 
+def setup_metric_exporter():
+    global METRIC_EXPORTER
+    if OPTIONS.metrics_server_enable:
+        METRIC_EXPORTER = StatsDMetricExporter(OPTIONS.metrics_ip, OPTIONS.metrics_port, prefix=OPTIONS.metrics_name_prefix)
+
 
 def configure_logging():
+
+    setup_metric_exporter()
 
     config_options = get_state().config_options
 
@@ -136,6 +147,9 @@ def configure_logging():
             PMGRPCDLOG.setLevel(logging.DEBUG)
         else:
             PMGRPCDLOG.setLevel(logging.INFO)
+
+        if config_options.trace:
+            PMGRPCDLOG.setLevel(TRACE_LEVEL)
 
         # create file handler which logs even debug messages
         grfh = logging.FileHandler(config_options.PMGRPCDLOGfile)
@@ -202,3 +216,111 @@ def signalhandler(signum, frame):
         PMGRPCDLOG.info("Signal handler called with USR2 signal: %s" % (signum))
         PMGRPCDLOG.info("TODO: %s" % ("todo"))
 
+
+class Tracer:
+
+    def __init__(self, fixed_labels=None):
+        if fixed_labels is None:
+            fixed_labels = {}
+        self.fixed_labels = dict(fixed_labels)
+
+    def add_labels(self, new_labels):
+        labels = dict(new_labels)
+        labels.update(self.fixed_labels)
+        return self.__class__(labels)
+
+    def extend_labels(self, labels):
+        if not self.fixed_labels:
+            return labels
+        new_labels = dict(labels)
+        new_labels.update(self.fixed_labels)
+        return new_labels
+        
+
+    def process_trace_data(self, msg, labels=None, log_type="info", log=False) -> None:
+        '''
+        Here we lose the ability of appending values to a msg, but since this is thought 
+        mainly for metrics, it is fine.
+        '''
+        config_options = get_state().config_options
+        if not config_options.metrics_server_enable:
+            return
+
+        if labels is None:
+            labels = {}
+
+        if isinstance(msg, Exception):
+            metric_name = getattr(msg, "metric_name", None)
+            if metric_name is None:
+                metric_name = msg.__class__.__name__
+            excep_labels = getattr(msg, "fields", {})
+            excep_labels.update(labels)
+            labels = excep_labels
+        else:
+            metric_name = str(msg)
+
+        labels["type"] = log_type
+        labels = self.extend_labels(labels)
+
+        # Send metrics if needed
+        if METRIC_EXPORTER:
+            try:
+                METRIC_EXPORTER.incr(metric_name, labels)
+            except Exception as e:
+                # this is kind of counterproductive, but this cannot fail silently
+                PMGRPCDLOG.error(f"Failing sending metric with error: {e}. Disable metric exporter if this generates too many logs.")
+
+        if log and config_options.trace and config_options.metrics_send_to_log:
+            # Log using the trace, we lose the replacement part here
+            PMGRPCDLOG.trace(str(msg))
+
+
+    def trace_warning(self, msg, labels=None, log=False):
+        self.process_trace_data(msg, labels, "warning", log)
+
+    def trace_error(self, msg, labels=None, log=False):
+        self.process_trace_data(msg, labels, "error", log)
+
+    def trace_info(self, msg, labels=None, log=False):
+        self.process_trace_data(msg, labels, "info", log)
+
+
+TRACER = Tracer()
+
+MITIGATION = None
+
+def trace_warning(*args, **kargs):
+    TRACER.trace_warnings(*args, **kargs)
+
+def trace_error(*args, **kargs):
+    TRACER.trace_warnings(*args, **kargs)
+
+
+def log_wrapper(method):
+
+    @wraps(method)
+    def wrapped(*args, **kwargs):
+        try:
+            yield from method(*args, **kwargs)
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger("PMGRPCDLOG")
+            logger.exception("Error performing method")
+            raise
+
+    return wrapped
+
+
+class ServicerMiddlewareClass(type):
+    def __new__(meta, classname, bases, class_dict):
+        new_class_dict = {}
+
+        for attribute_name, attribute in class_dict.items():
+            if inspect.isgeneratorfunction(attribute):
+                # replace it with a wrapped version
+                attribute = log_wrapper(attribute)
+
+            new_class_dict[attribute_name] = attribute
+
+        return type.__new__(meta, classname, bases, new_class_dict)

@@ -52,7 +52,8 @@ def create_topic(path):
     return rpath
 
 class KafkaExporter(Exporter):
-    def __init__(self, servers, topic, topic_per_encoding_path=None):
+    def __init__(self, servers, topic, topic_per_encoding_path=None, logger=None):
+        super().__init__(logger=logger)
         if not servers:
             raise Exception(f"Kafka servers must be valid, got {servers}")
         if not topic:

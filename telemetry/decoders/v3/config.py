@@ -32,6 +32,8 @@ from lib_pmgrpcd import PMGRPCDLOG
 from transformations import load_transformtions_from_file
 from exceptions import PmgrpcdException
 import os
+import importlib
+from base_transformation import MetricTransformationBase
 
 
 class FileNotFound(PmgrpcdException):
@@ -94,3 +96,23 @@ def configure(config=None):
     if config.file_exporter_file is not None:
         exporter = FileExporter(config.file_exporter_file)
         export_pmgrpcd.EXPORTERS["file"] = exporter
+
+    # the last part is to import and configure the mitigation function
+    if config.mitigation:
+        try:
+            mitigation_module  = importlib.import_module(config.mitigation_module)
+        except ModuleNotFoundError:
+            raise Exception(f"We can not load mitigation module {config.mitigation_module})")
+        try:
+            constructor = getattr(mitigation_module, config.mitigation_object_contructor)
+        except  AttributeError:
+            raise Exception(f"Could not load {config.mitigation_object_contructor} from {config.mitigation_module}")
+        mitigation_object = constructor()
+        if not isinstance(mitigation_object, MetricTransformationBase):
+            raise Exception("Mitigation constructor did not return an object of type MetricTransformationBase")
+        lib_pmgrpcd.MITIGATION = mitigation_object
+
+
+
+
+

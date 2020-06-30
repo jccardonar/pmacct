@@ -86,7 +86,7 @@ class GrpcRawGPBToHuaweiGrpcGPB(BaseConverter):
         try:
             decoded_content = process_huawei_grpc_msg(metric.content, self.proto_decoding_options)
         except Exception as e:
-
+            raise ErrorDecodingHuawei("Error decoding huawei msg") from e
         return decoded_content
 
     def transform(self, metric: GrpcRaw, warnings=None):

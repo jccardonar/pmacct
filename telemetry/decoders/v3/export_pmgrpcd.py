@@ -25,7 +25,7 @@
 #
 import os
 import time
-from lib_pmgrpcd import PMGRPCDLOG
+from lib_pmgrpcd import PMGRPCDLOG, trace_warning
 import lib_pmgrpcd
 import sys
 # TODO: Got a sefault with ujson and with rapidjson. Evaluate why
@@ -34,6 +34,10 @@ import ujson as json
 from abc import ABC, abstractmethod
 from debug import get_lock
 from encoders.cisco_kv import CiscoKVFlatten, NXEncoder
+from exceptions import PmgrpcdException
+from transformations import metric_to_json_dict
+import logging
+
 
 jsonmap = {}
 avscmap = {}
@@ -45,11 +49,18 @@ EXPORTERS = {}
 TRANSFORMATION = None
 
 class Exporter(ABC):
+
+    def __init__(self, logger=None):
+        if logger is None:
+            logger = logging.getLogger()
+        self.logger = logger
+
     @abstractmethod
     def process_metric(self, metric):
         pass
 
-
+class NoNewMetrics(PmgrpcdException):
+    pass
 
 def export_metrics(datajsonstring):
     #breakpoint() if get_lock() else None
@@ -223,42 +234,48 @@ def finalize_telemetry_data(metric):
         return
 
     metrics = [metric]
+    path = metric.path
 
     warnings = []
+
 
     # find mitigation
-    if TRANSFORMATIONS:
-        new_metrics = TRANSFORMATIONS.transform_list(metrics, warnings)
+    if TRANSFORMATION:
+        try:
+            new_metrics = list(TRANSFORMATION.transform_list(metrics, warnings))
+        except:
+            raise
         if not new_metrics:
-            raise exception
+            raise NoNewMetrics("No new metrics fromm transformations", {"transformation": "TRANSFORMATIONS", "path": path})
+        metrics = new_metrics
         if warnings:
-            trace_warnings(warnings)
-        if errors:
-            if options.fail_on_single_error:
-                raise error
-            else:
-                trace_errors(errors)
+            trace_warning(warnings)
 
-    warnings = []
-    new_metrics = mitigation.transform_list(new_metrics, warnings)
-    if warnings:
-        trace_warnings(warnings)
-    if errors:
-        if options.fail_on_single_error:
-            raise error
-
+    if lib_pmgrpcd.MITIGATION:
+        try:
+            new_metrics = list(lib_pmgrpcd.MITIGATION.transform_list(metrics, warnings))
+        except:
+            raise
+        if not new_metrics:
+            raise NoNewMetrics("No new metrics fromm transformations", {"transformation": "MITIGATION", "path": path})
+        metrics = new_metrics
+        if warnings:
+            trace_warning(warnings)
 
     for n_metric in new_metrics:
+        # this can change if content is a dict or list
+        data = metric_to_json_dict(n_metric)
+        json_metric = json.dumps(data)
+        export_metrics2(json_metric)
+
+
+def export_metrics2(json_metric: str):
+    for exporter in EXPORTERS:
         try:
-            export_metrics2(n_metric)
-        except queuepul:
-            raise QueueFull
-
-
-def export_metrics2(metric):
-    try:
-        queue.put(metric, timeout)
-    except:
-        trace_warnings(queu_full)
+            EXPORTERS[exporter].process_metric(json_metric)
+        except Exception as e:
+            PMGRPCDLOG.debug("Error processing packet on exporter %s. Error was %s", exporter, e)
+            raise
+        #breakpoint() if get_lock() else None
 
 

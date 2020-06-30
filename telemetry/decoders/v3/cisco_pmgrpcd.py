@@ -28,6 +28,7 @@ import cisco_grpc_dialout_pb2_grpc
 from google.protobuf.json_format import MessageToDict
 import ujson as json
 import lib_pmgrpcd
+from lib_pmgrpcd import ServicerMiddlewareClass
 import time
 from export_pmgrpcd import FinalizeTelemetryData
 import base64
@@ -50,38 +51,8 @@ def process_cisco_kv(new_msg):
 
 from types import FunctionType, GeneratorType
 import collections
-from functools import wraps
-import inspect
 
 
-def log_wrapper(method):
-
-    @wraps(method)
-    def wrapped(*args, **kwargs):
-        try:
-            yield from method(*args, **kwargs)
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger("PMGRPCDLOG")
-            logger.exception("Error performing method")
-            raise
-
-    return wrapped
-
-
-class ServicerMiddlewareClass(type):
-    def __new__(meta, classname, bases, class_dict):
-        new_class_dict = {}
-
-        for attribute_name, attribute in class_dict.items():
-            if inspect.isgeneratorfunction(attribute):
-                # replace it with a wrapped version
-                attribute = log_wrapper(attribute)
-
-            new_class_dict[attribute_name] = attribute
-
-        return type.__new__(meta, classname, bases, new_class_dict)
 
 
 class gRPCMdtDialoutServicer(
