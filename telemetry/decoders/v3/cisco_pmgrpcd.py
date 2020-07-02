@@ -28,14 +28,40 @@ import cisco_grpc_dialout_pb2_grpc
 from google.protobuf.json_format import MessageToDict
 import ujson as json
 import lib_pmgrpcd
-from lib_pmgrpcd import ServicerMiddlewareClass
+from lib_pmgrpcd import ServicerMiddlewareClass, create_grpc_headers
 import time
 from export_pmgrpcd import FinalizeTelemetryData
 import base64
 from debug import get_lock
+from metric_types.base_types  import GrpcRaw
 
 import cisco_telemetry_pb2
+from types import FunctionType, GeneratorType
+from typing import Tuple, Optional, Any
+import collections
+from metric_types.cisco_metrics import GrpcRawJsonToCiscoGrpcGPB, CiscoGrpcGPBToCiscoGrpcJson, CiscoGrpcJsonToCiscoElement, GrpcRawGPBToCiscoGrpcGPB, GrpcRawToNxGrpcGPB, NxGrpcGPBToNXGrpcKV, CiscoElementToNXElement, CiscoGrpcGPBToCiscoGrpcKV
+from cisco_gbpvk_tools.cisco_gpbvkv import PivotingCiscoGPBKVDict
+from exceptions import PmgrpcdException
 
+TRACER = lib_pmgrpcd.TRACER.add_labels({"vendor": "Cisco"})
+
+def decode_raw_json(raw_metric):
+    cisco_grpc_gpb_metric = GrpcRawJsonToCiscoGrpcGPB().convert(raw_metric)
+    cisco_json = CiscoGrpcGPBToCiscoGrpcJson().convert(cisco_grpc_gpb_metric)
+    element_decoder = CiscoGrpcJsonToCiscoElement()
+    return cisco_json, element_decoder
+
+def decode_raw_gpvkv(raw_metric):
+    cisco_grpc_gpb_metric = GrpcRawGPBToCiscoGrpcGPB().convert(raw_metric)
+    cisco_gpbkv = CiscoGrpcGPBToCiscoGrpcKV().convert(cisco_grpc_gpb_metric)
+    element_decoder = PivotingCiscoGPBKVDict()
+    return cisco_gpbkv, element_decoder
+
+def decode_raw_nx(raw_metric):
+    cisco_grpc_gpb_metric = GrpcRawToNxGrpcGPB().convert(raw_metric)
+    cisco_nx_gpbkv = NxGrpcGPBToNXGrpcKV().convert(cisco_grpc_gpb_metric)
+    element_decoder = PivotingCiscoGPBKVDict()
+    return cisco_nx_gpbkv, element_decoder
 
 def process_cisco_kv(new_msg):
     """
@@ -49,12 +75,6 @@ def process_cisco_kv(new_msg):
     return grpc_message
 
 
-from types import FunctionType, GeneratorType
-import collections
-
-
-
-
 class gRPCMdtDialoutServicer(
     cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer,
     metaclass=ServicerMiddlewareClass,
@@ -62,7 +82,7 @@ class gRPCMdtDialoutServicer(
     def __init__(self):
         PMGRPCDLOG.info("Cisco: Initializing gRPCMdtDialoutServicer()")
 
-    def MdtDialout(self, msg_iterator, context):
+    def MdtDialout2(self, msg_iterator, context):
         # breakpoint() if DEBUG_LOCK.acquire() else None
 
         # Get information about the peer, and print it.
@@ -84,7 +104,6 @@ class gRPCMdtDialoutServicer(
         jsonTelemetryNode = json.dumps(grpcPeer, indent=2, sort_keys=True)
 
         PMGRPCDLOG.debug("Cisco connection info: %s" % jsonTelemetryNode)
-        breakpoint()
 
         # Now go over the msgs
         for new_msg in msg_iterator:
@@ -108,6 +127,117 @@ class gRPCMdtDialoutServicer(
                 continue
         return
         yield
+
+    def MdtDialout(self, msg_iterator, context):
+
+        # Create grpc metadata
+        grpcPeer = create_grpc_headers(context, "Cisco", "cisco_grpc_dialout_pb2_grpc", "GPB Telemetry")
+
+        # the next is done once per connection, so it is fine.
+        PMGRPCDLOG.debug("Cisco MdtDialout Message: %s" % grpcPeer["telemetry_node"])
+        jsonTelemetryNode = json.dumps(grpcPeer, indent=2, sort_keys=True)
+        # breakpoint() if DEBUG_LOCK.acquire() else None
+
+        PMGRPCDLOG.debug("Cisco connection info: %s" % jsonTelemetryNode)
+
+        # Now go over the msgs
+        for new_msg in msg_iterator:
+            # breakpoint() if get_lock() else None
+            TRACER.trace_info("msg_received")
+            TRACER.trace_info("msg_received")
+            collection_header = grpcPeer.copy()
+            received_time = int(round(time.time() * 1000))
+            collection_header["received_time"] = received_time
+            PMGRPCDLOG.trace("Cisco new_msg iteration message")
+
+            # TODO:
+            # Should this be placed into an interceptor? why per msg and not per connection?
+            # filter msgs that do not match the IP option if enabled.
+            if lib_pmgrpcd.OPTIONS.ip:
+                if grpcPeer["telemetry_node"] != lib_pmgrpcd.OPTIONS.ip:
+                    TRACER.trace_info("msg_ignored")
+                    continue
+                PMGRPCDLOG.trace(
+                    "Cisco: ip filter matched with ip %s" % (lib_pmgrpcd.OPTIONS.ip)
+                )
+
+            try:
+                self.cisco_processing(grpcPeer, new_msg)
+            except Exception as e:
+                PMGRPCDLOG.trace("Error processing Cisco packet, error is %s", e)
+                TRACER.trace_error(e)
+                continue
+        return
+        yield
+
+    def find_encoding_and_decode(self, raw_metric) -> Tuple[Optional[str], Optional[Any], Optional[Any]]:
+        encoding_type = None
+        new_metric = None
+        element_transformation = None
+
+        if lib_pmgrpcd.OPTIONS.cenctype == "json":
+            #PMGRPCDLOG.trace("Try to parse json")
+            try:
+                new_metric, element_transformation = decode_raw_json(raw_metric)
+            except Exception as e:
+                PMGRPCDLOG.trace(
+                    "ERROR: Direct json parsing of grpc_message failed with message:\n%s\n",
+                    e,
+                )
+            encoding_type = "ciscojson"
+            return encoding_type, new_metric, element_transformation
+
+        elif lib_pmgrpcd.OPTIONS.cenctype == "gpbkv":
+            #PMGRPCDLOG.trace("Try to parse json")
+            try:
+                new_metric, element_transformation = decode_raw_gpvkv(raw_metric)
+            except Exception as e:
+                PMGRPCDLOG.trace(
+                    "ERROR: Direct json parsing of grpc_message failed with message:\n%s\n",
+                    e,
+                )
+            encoding_type = "ciscojson"
+            return encoding_type, new_metric, element_transformation
+
+        elif lib_pmgrpcd.OPTIONS.cenctype == "gpbcomp":
+            raise Exception("gpbcomp not supported in cisco")
+
+        encoding_type = "unknown"
+        return encoding_type, new_metric
+
+    def cisco_processing(self, grpcPeer, new_msg):
+        messages = {}
+        grpc_message = {}
+        encoding_type = None
+        PMGRPCDLOG.trace("Cisco: Received GRPC-Data")
+        # this is too much
+        # PMGRPCDLOG.debug(new_msg.data)
+
+        # dump the raw data
+        if lib_pmgrpcd.OPTIONS.rawdatadumpfile:
+            PMGRPCDLOG.trace("Write rawdatadumpfile: %s", lib_pmgrpcd.OPTIONS.rawdatadumpfile)
+            with open(lib_pmgrpcd.OPTIONS.rawdatadumpfile, "a") as rawdatafile:
+                rawdatafile.write(base64.b64encode(new_msg.data).decode())
+                rawdatafile.write("\n")
+
+        data = {"collection_data": grpcPeer, "content": new_msg.data}
+        raw_metric = GrpcRaw(data)
+
+        # Find the encoding of the packet
+        try:
+            encoding_type, metric, element_transformation  = find_encoding_and_decode(new_msg)
+        except Exception as e:
+            PMGRPCDLOG.error("Error decoding packet. Error is {}".format(e))
+            raise
+
+
+        for elem in to_element_transformation.transform(metric):
+            TRACER.trace_info("element_generated",)
+            try:
+                returned = finalize_telemetry_data(elem)
+            except Exception as e:
+                PMGRPCDLOG.trace("Error finalazing  message: %s", e)
+                TRACER.trace_error(e)
 
 
 def cisco_processing(grpcPeer, new_msg):
@@ -169,6 +299,10 @@ def cisco_processing(grpcPeer, new_msg):
             messages = {}
 
     message_header_dict["path"] = path
+    print(path)
+    if "interfaces/interface" in full_ecoding_path and "openconfig" in full_ecoding_path:
+        pass
+    breakpoint()
 
     PMGRPCDLOG.trace(
         "EPOCH=%-10s NIP=%-15s NID=%-20s VEN=%-7s PT=%-22s ET=%-12s ELEM=%s",

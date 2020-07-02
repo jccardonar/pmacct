@@ -23,7 +23,6 @@ from metric_types.cisco_metrics import (
     EncodingNotFound,
     CiscoEncodings,
     CiscoGrpcKV,
-    CiscoGrpcJson,
     NxGrpcGPB,
     NXGrpcKV,
     NXElement,

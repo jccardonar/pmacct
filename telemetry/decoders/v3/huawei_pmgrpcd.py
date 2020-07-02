@@ -27,7 +27,7 @@ import huawei_grpc_dialout_pb2_grpc
 from lib_pmgrpcd import PMGRPCDLOG
 import ujson as json
 import lib_pmgrpcd
-from lib_pmgrpcd import ServicerMiddlewareClass
+from lib_pmgrpcd import ServicerMiddlewareClass, create_grpc_headers
 from google.protobuf.json_format import MessageToDict
 import time
 from datetime import datetime
@@ -46,21 +46,6 @@ import huawei_telemetry_pb2
 
 TRACER = lib_pmgrpcd.TRACER.add_labels({"vendor": "Huawei"})
 
-def create_grpc_headers(context, vendor, processing, ulayer):
-    grpcPeer = {}
-    grpcPeerStr = context.peer()
-    (
-        grpcPeer["telemetry_proto"],
-        grpcPeer["telemetry_node"],
-        grpcPeer["telemetry_node_port"],
-    ) = lib_pmgrpcd.parser_grpc_peer(grpcPeerStr)
-    grpcPeer["ne_vendor"] = vendor
-    metadata = dict(context.invocation_metadata())
-    grpcPeer["user-agent"] = metadata["user-agent"]
-    # Example of grpcPeerStr -> 'ipv4:10.215.133.23:57775'
-    grpcPeer["grpc_processing"] = processing
-    grpcPeer["grpc_ulayer"] = ulayer
-    return grpcPeer
 
 
 
@@ -130,11 +115,13 @@ class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServic
         PMGRPCDLOG.debug("Huawei RAW Message: %s" % jsonTelemetryNode)
 
         for new_msg in message:
+
             TRACER.trace_info("msg_received")
             collection_header = grpcPeer.copy()
             received_time = int(round(time.time() * 1000))
             collection_header["received_time"] = received_time
             PMGRPCDLOG.trace("Huawei new_msg iteration message")
+
             if lib_pmgrpcd.OPTIONS.ip:
                 if grpcPeer["telemetry_node"] != lib_pmgrpcd.OPTIONS.ip:
                     TRACER.trace_info("msg_ignored")

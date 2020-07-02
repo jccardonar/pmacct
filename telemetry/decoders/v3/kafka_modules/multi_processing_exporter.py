@@ -11,8 +11,9 @@ class WorkerProcess(multiprocessing.Process):
     Multiprocess handler. Builds the metric processor, and 
     passes metrics to it.
     '''
-    def __init__(self, queue, state_builder, transform_function, logger_queue):
+    def __init__(self, worker_id, queue, state_builder, transform_function, logger_queue):
         super().__init__()
+        self.worker_id = worker_id
         self.__queue = queue
         self.__state_builder = state_builder
         self.__transformFunction = transform_function
@@ -22,10 +23,10 @@ class WorkerProcess(multiprocessing.Process):
     def build_logger(self):
         # https://docs.python.org/3/howto/logging-cookbook.html#logging-to-a-single-file-from-multiple-processes
         h = logging.handlers.QueueHandler(self.logger_queue)  # Just the one handler needed
-        self.logger  = logging.getLogger("WORKER")
+        self.logger  = logging.getLogger(f"WORKER_{self.worker_id}")
         self.logger.addHandler(h)
         # send all messages, for demo; no other level or filter logic applied.
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(lib_pmgrpcd.get_logger_level())
 
     def run(self):
         state = self.__state_builder(logger=self.logger)
@@ -58,7 +59,7 @@ class WorkerSwarm:
 
         self.__processes = []
         for i in range(0, number_of_workers):
-            t = WorkerProcess(self.__queue, state_builder, transform_function, self.__logger_queue)
+            t = WorkerProcess(str(i), self.__queue, state_builder, transform_function, self.__logger_queue)
             self.__processes.append(t)
 
     def start(self):

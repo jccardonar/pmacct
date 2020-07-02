@@ -145,7 +145,7 @@ def add_input(parser):
     )
 
     parser.add(
-        "--nx", action="store_true", dest="nx_enable", help="Enable NX processing"
+        "--pivot_nx_api", action="store_true", help="Pivot NX api"
     )
 
     parser.add(

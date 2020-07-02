@@ -248,7 +248,7 @@ class DictSubTreeData(SubTreeData):
 
     @property
     def collection_data(self):
-        return self.load_from_data(self.collection_data_key, "collection_data", {})
+        return self.load_from_data(self.collection_data_key, "collection_data")
 
     @property
     def msg_timestamp(self):

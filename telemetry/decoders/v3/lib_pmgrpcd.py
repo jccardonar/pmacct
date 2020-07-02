@@ -69,6 +69,22 @@ def parser_grpc_peer(peer: str) -> Tuple[str, str, str]:
     return protocol, node, port
 
 
+def create_grpc_headers(context, vendor, processing, ulayer):
+    grpcPeer = {}
+    grpcPeerStr = context.peer()
+    (
+        grpcPeer["telemetry_proto"],
+        grpcPeer["telemetry_node"],
+        grpcPeer["telemetry_node_port"],
+    ) = parser_grpc_peer(grpcPeerStr)
+    grpcPeer["ne_vendor"] = vendor
+    metadata = dict(context.invocation_metadata())
+    grpcPeer["user-agent"] = metadata["user-agent"]
+    # Example of grpcPeerStr -> 'ipv4:10.215.133.23:57775'
+    grpcPeer["grpc_processing"] = processing
+    grpcPeer["grpc_ulayer"] = ulayer
+    return grpcPeer
+
 TRACE_LEVEL = 5
 
 
@@ -126,6 +142,14 @@ def setup_metric_exporter():
     global METRIC_EXPORTER
     if OPTIONS.metrics_server_enable:
         METRIC_EXPORTER = StatsDMetricExporter(OPTIONS.metrics_ip, OPTIONS.metrics_port, prefix=OPTIONS.metrics_name_prefix)
+
+def get_logger_level():
+    config_options = OPTIONS
+    if config_options.trace:
+        return TRACE_LEVEL
+    if config_options.debug:
+        return logging.DEBUG
+    return logging.INFO
 
 
 def configure_logging():
