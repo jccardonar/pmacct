@@ -30,7 +30,7 @@ import ujson as json
 import lib_pmgrpcd
 from lib_pmgrpcd import ServicerMiddlewareClass, create_grpc_headers
 import time
-from export_pmgrpcd import FinalizeTelemetryData
+from export_pmgrpcd import FinalizeTelemetryData, finalize_telemetry_data
 import base64
 from debug import get_lock
 from metric_types.base_types  import GrpcRaw
@@ -124,6 +124,7 @@ class gRPCMdtDialoutServicer(
                 cisco_processing(grpcPeer, new_msg)
             except Exception as e:
                 PMGRPCDLOG.debug("Error processing Cisco packet, error is %s", e)
+                PMGRPCDLOG.exception()
                 continue
         return
         yield
@@ -164,7 +165,8 @@ class gRPCMdtDialoutServicer(
             try:
                 self.cisco_processing(grpcPeer, new_msg)
             except Exception as e:
-                PMGRPCDLOG.trace("Error processing Cisco packet, error is %s", e)
+                #PMGRPCDLOG.trace("Error processing Cisco packet, error is %s", e)
+                PMGRPCDLOG.exception("Error processing Cisco packet, error is %s", e)
                 TRACER.trace_error(e)
                 continue
         return
@@ -176,7 +178,6 @@ class gRPCMdtDialoutServicer(
         element_transformation = None
 
         if lib_pmgrpcd.OPTIONS.cenctype == "json":
-            #PMGRPCDLOG.trace("Try to parse json")
             try:
                 new_metric, element_transformation = decode_raw_json(raw_metric)
             except Exception as e:
@@ -184,11 +185,11 @@ class gRPCMdtDialoutServicer(
                     "ERROR: Direct json parsing of grpc_message failed with message:\n%s\n",
                     e,
                 )
+                raise
             encoding_type = "ciscojson"
             return encoding_type, new_metric, element_transformation
 
         elif lib_pmgrpcd.OPTIONS.cenctype == "gpbkv":
-            #PMGRPCDLOG.trace("Try to parse json")
             try:
                 new_metric, element_transformation = decode_raw_gpvkv(raw_metric)
             except Exception as e:
@@ -196,6 +197,7 @@ class gRPCMdtDialoutServicer(
                     "ERROR: Direct json parsing of grpc_message failed with message:\n%s\n",
                     e,
                 )
+                raise
             encoding_type = "ciscojson"
             return encoding_type, new_metric, element_transformation
 
@@ -203,11 +205,9 @@ class gRPCMdtDialoutServicer(
             raise Exception("gpbcomp not supported in cisco")
 
         encoding_type = "unknown"
-        return encoding_type, new_metric
+        return encoding_type, new_metric, None
 
     def cisco_processing(self, grpcPeer, new_msg):
-        messages = {}
-        grpc_message = {}
         encoding_type = None
         PMGRPCDLOG.trace("Cisco: Received GRPC-Data")
         # this is too much
@@ -225,13 +225,12 @@ class gRPCMdtDialoutServicer(
 
         # Find the encoding of the packet
         try:
-            encoding_type, metric, element_transformation  = find_encoding_and_decode(new_msg)
+            encoding_type, metric, element_transformation  = self.find_encoding_and_decode(raw_metric)
         except Exception as e:
-            PMGRPCDLOG.error("Error decoding packet. Error is {}".format(e))
+            PMGRPCDLOG.error("Error decoding packet. Error is:  {}".format(e))
             raise
 
-
-        for elem in to_element_transformation.transform(metric):
+        for elem in element_transformation.transform(metric):
             TRACER.trace_info("element_generated",)
             try:
                 returned = finalize_telemetry_data(elem)
@@ -302,7 +301,6 @@ def cisco_processing(grpcPeer, new_msg):
     print(path)
     if "interfaces/interface" in full_ecoding_path and "openconfig" in full_ecoding_path:
         pass
-    breakpoint()
 
     PMGRPCDLOG.trace(
         "EPOCH=%-10s NIP=%-15s NID=%-20s VEN=%-7s PT=%-22s ET=%-12s ELEM=%s",

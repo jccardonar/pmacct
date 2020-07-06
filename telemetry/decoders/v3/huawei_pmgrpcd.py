@@ -99,6 +99,7 @@ class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServic
                 huawei_processing(grpcPeer, new_msg)
             except Exception as e:
                 PMGRPCDLOG.debug("Error processing Huawei packet, error is %s", e)
+                PMGRPCDLOG.exception()
                 continue
         return
         yield

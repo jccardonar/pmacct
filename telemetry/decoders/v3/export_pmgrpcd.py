@@ -262,6 +262,7 @@ def finalize_telemetry_data(metric):
         if warnings:
             trace_warning(warnings)
 
+
     for n_metric in new_metrics:
         # this can change if content is a dict or list
         data = metric_to_json_dict(n_metric)
