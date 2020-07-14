@@ -3,10 +3,71 @@ Utils for the gnmi package
 """
 # from pyang import xpath_parser
 from protos import gnmi_pb2
+from typing import Tuple, Sequence
 
 AXIS_SUPPORTED = set(["child", "descendant-or-self"])
 SUPPORTED_PREDICATES = set(["relative", "path_expr"])
 
+# From https://stackoverflow.com/questions/18092354/python-split-string-without-splitting-escaped-character
+def split_unescape(s, delim, escape='\\', unescape=True):
+    """
+    From https://stackoverflow.com/questions/18092354/python-split-string-without-splitting-escaped-character
+    >>> split_unescape('foo,bar', ',')
+    ['foo', 'bar']
+    >>> split_unescape('foo$,bar', ',', '$')
+    ['foo,bar']
+    >>> split_unescape('foo$$,bar', ',', '$', unescape=True)
+    ['foo$', 'bar']
+    >>> split_unescape('foo$$,bar', ',', '$', unescape=False)
+    ['foo$$', 'bar']
+    >>> split_unescape('foo$', ',', '$', unescape=True)
+    ['foo$']
+    """
+    ret = []
+    current = []
+    itr = iter(s)
+    for ch in itr:
+        if ch == escape:
+            try:
+                # skip the next character; it has been escaped!
+                if not unescape:
+                    current.append(escape)
+                current.append(next(itr))
+            except StopIteration:
+                if unescape:
+                    current.append(escape)
+        elif ch == delim:
+            # split! (add current to the list and reset it)
+            ret.append(''.join(current))
+            current = []
+        else:
+            current.append(ch)
+    ret.append(''.join(current))
+    return ret
+
+def parse_gnmi_metadata(text) -> Sequence[Tuple[str, str]]:
+    r'''
+    Transform a string into two value tuples. \ for escaping other commas or =.
+    >>> parse_gnmi_metadata('key=1,key2=2')
+    (('key', '1'), ('key2', '2'))
+    >>> parse_gnmi_metadata('key=1\,,key2=\=2')
+    (('key', '1,'), ('key2', '=2'))
+    >>> parse_gnmi_metadata('')
+    ()
+    '''
+    if not text:
+        return ()
+    # deal with escaping.
+    element_splitter = ","
+    kv_splitter = "="
+    elements = split_unescape(text, element_splitter)
+    results = []
+    for elem in elements:
+        if kv_splitter not in elem:
+            raise Exception(f"Element in gnmi textdata does not contain {kv_splitter}")
+        splited = elem.split(kv_splitter, 1)
+        results.append(tuple(splited))
+    return tuple(results)
 
 class PathNotSupported(Exception):
     pass
@@ -107,6 +168,7 @@ def simple_gnmi_string_parser(path):
     Using also examples from 
     https://github.com/google/gnxi/blob/master/utils/xpath/xpath.go#L255
     We are not going to differentiate between prefix and path for now.
+    TODO: pyang has a parser for xpaths. I would prefer to use that one since it would be better maintained.
     """
     # First, let us split the paths into steps.
     # / within predicates

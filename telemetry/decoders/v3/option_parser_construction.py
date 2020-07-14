@@ -17,6 +17,7 @@ def configure_parser(parser):
     add_general(parser)
     add_logging(parser)
     add_grpc_server(parser)
+    add_gnmi_options(parser)
     add_development(parser)
 
     add_input(parser)
@@ -128,6 +129,47 @@ def add_grpc_server(parser):
     parser.add(
         "--grpc_server_certificate_chain",
         help="File with the certificate chain for the grpc server",
+    )
+
+def add_gnmi_options(parser):
+    '''
+    Options for GNMI
+    '''
+    parser.add(
+       "-g",
+       "--gnmi_enable",
+        action="store",
+       help="Boolean defining whether gnmi is enable (this disables the rest of collectrors)",
+    )
+
+    parser.add(
+       "--gnmi_target",
+       env_var = "GNMI_SERVER",
+       help="The url of the gnmi target",
+    )
+
+    parser.add(
+        "--gnmi_metadata",
+        help="Text to add as metadata. This text should have the style key1=value,key2=value, and it will be turned into a two-value tuple.",
+    )
+
+    parser.add(
+        "--gnmi_xpaths",
+       env_var = "GNMI_XPATHS",
+        help="Xpaths to subscribe, separated by a comma.",
+    )
+
+    parser.add(
+        "--gnmi_sample_interval",
+        default=10,
+        type=int,
+        help="Interval of samples. Defaults to 10.",
+    )
+
+    parser.add(
+        "--gnmi_metadata_env",
+        default="GNMI_METADATA",
+        help="Env variable to obtain metadata for gnmi. Ignored if metadata is provided in config file or command line by gnmi_metadata",
     )
 
 
