@@ -86,7 +86,7 @@ class GNMIClient:
 
     def get_subscriptions(self):
         '''
-        Converts provided paths to subscriptions. 
+        Converts provided paths to subscriptions.
         '''
         subscriptions = []
         for path in self.paths:
