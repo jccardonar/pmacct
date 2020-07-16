@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Union
 from metric_types.base_types import AttrNotFound, KeyErrorMetric
+
 import pytest
 
 

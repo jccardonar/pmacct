@@ -1,7 +1,6 @@
 from metric_types.base_types import (
     DictSubTreeData,
     DictElementData,
-    load_data_and_make_property,
     GrpcRaw,
     AttrNotFound,
     AmbiguousContent,
