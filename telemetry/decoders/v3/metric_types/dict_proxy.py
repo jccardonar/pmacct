@@ -5,7 +5,7 @@ https://stackoverflow.com/questions/4984647/accessing-dict-keys-like-an-attribut
 but since we only take a subset of keys, it is read only, and we need to map
 the properties to different keys, then I ended up doing my own.
 '''
-from typing import Dict, Any
+from typing import Dict, Any, TypeVar
 from exceptions import MetricException
 
 
@@ -18,7 +18,7 @@ class AttrNotFound(MetricException):
 class InvalidClassConstruction(MetricException):
     pass
 
-def dict_attribute(f):
+def dict_attribute(fn):
     """
     Using the function name, it returns the value from the dict
     This is highly tighed to the DictSubTreeData class. 
@@ -26,12 +26,16 @@ def dict_attribute(f):
     properties, but I might do it later
     """
     def new_function(self):
-        attr_name = f.__name__
+        attr_name = fn.__name__
         return self.get_attr_from_dict(attr_name)
 
     new_function._dir_attr = True
     prop_obj = property(new_function)
     return prop_obj
+
+
+# TypeVar bounded to DictSubTreeData
+T = TypeVar("T", bound="DictProxy")
 
 class DictProxy:
     '''
@@ -64,13 +68,13 @@ class DictProxy:
     def __init__(self, data: Dict[str, Any]):
         self.data = data
 
-
     def __init_subclass__(scls, *args, **kwargs):
         '''
         Here we try to impose correct subclasses, by making 
         sure the value and key properties are defined.
         '''
-        super().__init_subclass__(**kwargs)
+        super().__init_subclass__(*args, **kwargs)
+
         # make sure the subclass kas the properties for all the keys it defines.
         scls_attr_to_key = scls._attr_to_key
         for val_prop, key_prop in scls_attr_to_key.items():
@@ -104,6 +108,9 @@ class DictProxy:
         return getattr(cls, attr_key)
 
     def get_attr_from_dict(self, attr):
+        '''
+        Gets attribute from the dictionary. It takes care of getting the key first.
+        '''
         attr_key = self.get_attr_key(attr)
         return self.load_from_data(attr_key, attr)
 
@@ -118,3 +125,24 @@ class DictProxy:
         if key not in self.data:
             raise KeyErrorMetric(f"Error getting {name}, {key} not present in data.")
         return self.data[key]
+
+    def replace(self: T, **kargs):
+        '''
+        Returns an object of the same type, but replacing some of its data
+        '''
+        new_data = self.data.copy()
+        missed_keys = set()
+        for attr_name, new_value in kargs.items():
+            try:
+                attr_key = self.get_attr_key(attr_name)
+            except AttrNotFound as e:
+                missed_keys.add(attr_name)
+                continue
+            new_data[attr_key] = new_value
+        if missed_keys:
+            raise AttrNotFound(f"{missed_keys} do not have a key")
+        return self.__class__(new_data)
+
+
+
+

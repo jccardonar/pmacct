@@ -1,18 +1,20 @@
-from metric_types.base_types import (
-    DictSubTreeData,
-    DictElementData,
-    GrpcRaw,
-    AmbiguousContent
-)
 import base64
-import huawei_telemetry_pb2
-from typing import Sequence
 import importlib
 from exceptions import PmgrpcdException
 
-#from google.protobuf.json_format import MessageToDict
-from proto_override import MessageToDictUint64 as MessageToDict, MessageToDictWithOptions
+import huawei_telemetry_pb2
 from base_transformation import BaseConverter, SimpleConversion, TransformationBase
+from metric_types.base_types import (
+    AmbiguousContent,
+    DictElementData,
+    DictSubTreeData,
+    GrpcRaw,
+)
+
+# from google.protobuf.json_format import MessageToDict
+from proto_override import MessageToDictUint64 as MessageToDict
+from proto_override import MessageToDictWithOptions
+
 
 def process_huawei_grpc_msg(msg, options=None):
     if options is None:
@@ -30,10 +32,12 @@ def process_huawei_grpc_msg(msg, options=None):
     )
     return telemetry_msg_dict
 
+
 class HuaweiElement(DictElementData):
-    '''
+    """
     An element of the huawei tree.
-    '''
+    """
+
     data_json_key = "data_json"
     data_gpb_key = "data_gpb"
     p_key = "sensor_path"
@@ -46,11 +50,11 @@ class HuaweiElement(DictElementData):
         raise NotImplementedError("Keys are not implemented for huwei elements")
 
 
-
 class HuaweiDictSubTreeData(DictSubTreeData):
-    '''
+    """
     Provides a base set of keys to extract elements from the huawei-telemetry.proto
-    '''
+    """
+
     data_json_key = "data_json"
     data_gpb_key = "data_gpb"
     p_key = "sensor_path"
@@ -64,8 +68,8 @@ class HuaweiDictSubTreeData(DictSubTreeData):
             return None
         return self.data[self.data_gpb_key]
 
-class HuaweiGrpcGPB(HuaweiDictSubTreeData):
 
+class HuaweiGrpcGPB(HuaweiDictSubTreeData):
     @property
     def content(self):
         raise AmbiguousContent("Huawei Raw Grpc does not have defined content")
@@ -73,6 +77,7 @@ class HuaweiGrpcGPB(HuaweiDictSubTreeData):
 
 class ErrorDecodingHuawei(PmgrpcdException):
     pass
+
 
 class GrpcRawGPBToHuaweiGrpcGPB(BaseConverter):
     def __init__(self, proto_decoding_options=None, keep_headers=True):
@@ -83,7 +88,9 @@ class GrpcRawGPBToHuaweiGrpcGPB(BaseConverter):
 
     def get_content(self, metric):
         try:
-            decoded_content = process_huawei_grpc_msg(metric.content, self.proto_decoding_options)
+            decoded_content = process_huawei_grpc_msg(
+                metric.content, self.proto_decoding_options
+            )
         except Exception as e:
             raise ErrorDecodingHuawei("Error decoding huawei msg") from e
         return decoded_content
@@ -101,18 +108,13 @@ class HuaweiCompact(HuaweiDictSubTreeData, DictElementData):
 
     content_key = "data_gpb"
 
-    def replace(self, content=None, keys=None, path=None):
-        new_data = self.data.copy()
-        if content is not None:
-            new_data[self.content_key] = {"row": content}
-        if keys is not None:
-            new_data[self.keys_key] = keys
-        if path is not None:
-            new_data[self.p_key] = path
-        return self.__class__(new_data)
-
-
-
+    def replace(self, **kargs):
+        '''
+        Content is actually behind a row dict. Take care of that.
+        '''
+        if "content" in kargs:
+            kargs["content"] = {"row": kargs["content"]}
+        return super().replace(**kargs)
 
     @property
     def content(self):
@@ -120,29 +122,28 @@ class HuaweiCompact(HuaweiDictSubTreeData, DictElementData):
             return []
         return self.data_gpb.get("row", [])
 
-    def get_elements(self)  -> Sequence[HuaweiElement]:
-        huawei_elements = []
-        for elem in self.content:
-            # elem is a gpb message
-            element_data = self.headers.copy()
-            element_content = self.decoder.decode(elem)
-            element_data[HuaweiElement.content_key] = element_content
-            huawei_elements.append(HuaweiElement(element_data))
+    #def get_elements(self) -> Sequence[HuaweiElement]:
+    #    huawei_elements = []
+    #    for elem in self.content:
+    #        # elem is a gpb message
+    #        element_data = self.headers.copy()
+    #        element_content = self.decoder.decode(elem)
+    #        element_data[HuaweiElement.content_key] = element_content
+    #        huawei_elements.append(HuaweiElement(element_data))
 
-        return huawei_elements
+    #    return huawei_elements
+
 
 class HuaweiGrpcGPBToHuaweiCompact(SimpleConversion):
     ORIGINAL_CLASS = HuaweiGrpcGPB
     RESULTING_CLASS = HuaweiCompact
 
 
-
 class HuaweiDecoder:
-
     def __init__(self, msg_constructor, options=None):
-        '''
+        """
         msg is a proto file
-        '''
+        """
         if options is None:
             options = {}
         self.options = options
@@ -159,15 +160,16 @@ class HuaweiDecoder:
         dict_msg = MessageToDictWithOptions(msg, self.options)
         return dict_msg
 
+
 class ModuleLoaderProblem(PmgrpcdException):
     pass
 
-class HuaweDecoderConstructor:
 
+class HuaweDecoderConstructor:
     def __init__(self, proto_descriptor):
-        '''
+        """
         proto_descriptor must be a dict[yang module]->[python module, msg]
-        '''
+        """
         self.proto_descriptor = proto_descriptor
 
     def get_decoder(self, module):
@@ -188,7 +190,7 @@ class HuaweDecoderConstructor:
             raise ModuleLoaderProblem(f"Module {module} cannot be found")
         try:
             msg = getattr(python_module, msg_name)
-        except  AttributeError:
+        except AttributeError:
             raise ModuleLoaderProblem(f"Msg {msg_name} not found")
 
         return msg
@@ -207,6 +209,3 @@ class HuaweCompactToHuaweiElements(TransformationBase):
             element_content = self.decoder.decode(elem["content"])
             element_data[HuaweiElement.content_key] = element_content
             yield HuaweiElement(element_data)
-
-
-

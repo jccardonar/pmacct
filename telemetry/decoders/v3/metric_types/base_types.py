@@ -1,11 +1,11 @@
 import base64
 from abc import ABC, abstractmethod
 from functools import lru_cache
-from typing import Any, Dict, Optional, Sequence, Union, TypeVar
+from typing import Any, Dict, Optional, Sequence, TypeVar, Union, Iterable
 
 import ujson as json
-from exceptions import PmgrpcdException, MetricException
-from .dict_proxy import DictProxy, dict_attribute, AttrNotFound, KeyErrorMetric
+
+from .dict_proxy import AttrNotFound, DictProxy, dict_attribute
 
 # Types
 ValueField = Dict[str, Union[str, float]]
@@ -39,7 +39,6 @@ class SubTreeData(ABC):
         Container on the model from which the content is originared.
         """
         raise NotImplementedError
-
 
     @property
     @abstractmethod
@@ -97,7 +96,7 @@ class SubTreeData(ABC):
     @abstractmethod
     def node_id(self) -> str:
         """
-        Id of node originating the metric. 
+        Id of node originating the metric.
         """
         raise NotImplementedError
 
@@ -130,9 +129,9 @@ class SubTreeData(ABC):
 
     @staticmethod
     def form_encoding_path(encoding_path: str, levels: Sequence[str]) -> str:
-        '''
+        """
         Forms an xpath by appending levels to a path
-        '''
+        """
         if not levels:
             return encoding_path
         # if there is no encoding path, then we just return the levesl
@@ -149,7 +148,8 @@ class SubTreeData(ABC):
 
 
 # TypeVar bounded to DictSubTreeData
-T = TypeVar("T", bound="DictSubTreeData")
+T = TypeVar("T", bound="SubTreeData")
+
 
 class DictSubTreeData(SubTreeData, DictProxy):
     """
@@ -180,29 +180,29 @@ class DictSubTreeData(SubTreeData, DictProxy):
         "encoding_type": "encoding_type_key",
         "subscription_id": "subscription_id_key",
         "collection_data": "collection_data_key",
+        "keys": "keys_key"
     }
 
-
-    def replace(
-        self: T,
-        content=None,
-        keys=None,
-        path: Optional[str] = None,
-        collection_data=None,
-    ) -> T:
-        """
-        Returns an object of the same type, but replacing some of its data.
-        """
-        new_data = self.data.copy()
-        if content is not None:
-            new_data[self.content_key] = content
-        if collection_data is not None:
-            new_data[self.collection_data_key] = collection_data
-        if keys is not None:
-            new_data[self.keys_key] = keys
-        if path is not None:
-            new_data[self.p_key] = path
-        return self.__class__(new_data)
+    #def replace(
+    #    self: T,
+    #    content=None,
+    #    keys=None,
+    #    path: Optional[str] = None,
+    #    collection_data=None,
+    #) -> T:
+    #    """
+    #    Returns an object of the same type, but replacing some of its data.
+    #    """
+    #    new_data = self.data.copy()
+    #    if content is not None:
+    #        new_data[self.content_key] = content
+    #    if collection_data is not None:
+    #        new_data[self.collection_data_key] = collection_data
+    #    if keys is not None:
+    #        new_data[self.keys_key] = keys
+    #    if path is not None:
+    #        new_data[self.p_key] = path
+    #    return self.__class__(new_data)
 
     # Some basic terms for the keys are included here.
     content_key = "content"
@@ -217,6 +217,7 @@ class DictSubTreeData(SubTreeData, DictProxy):
     msg_timestamp_key = "msg_timestamp"
     subscription_id_key = "subscription_id"
     collection_data_key = "collection_data"
+    keys_key = "keys"
 
     def __init__(self, data: Dict[Any, Any]):
         self._data = data
@@ -252,7 +253,6 @@ class DictSubTreeData(SubTreeData, DictProxy):
         Collection data is another dict with metadata about the collection.
         This could include time of collection, collector id, etc.
         """
-        pass
 
     @dict_attribute
     def msg_timestamp(self):
@@ -288,7 +288,14 @@ class DictSubTreeData(SubTreeData, DictProxy):
         """
         The path (aka as sensor path, encoding path) is the path from where you are getting the data
         """
-        pass
+
+    @property
+    def keys(self):
+        '''
+        Keys are only used in elements (when the content only includes one element).
+        Even then, not all elements have keys (for instance, huawei implementation)
+        '''
+        raise NotImplementedError("Not implemented")
 
     def to_dict(self):
         return self.data
@@ -296,28 +303,10 @@ class DictSubTreeData(SubTreeData, DictProxy):
     def to_json(self):
         return json.dumps(self.data)
 
-
-
-# The next could also be its own abstract class from SubTreeData, but to avoid multiple inheritance, we wont use it.
-class DictElementData(DictSubTreeData):
-    """
-    An element is a particular subtree with only one element (e.g. an interface, a qos queue, a fan, etc.)
-    Many of the "standard" operations we provide only apply to metrics that contain a single element.
-    TSDBs actually store elements (metrics): an entity represented by a key (e.g. labels), ana a value (although you can normally send many values in the same payload)
-    """
-    _attr_to_key: Dict[str, str] = dict(DictSubTreeData._attr_to_key)
-    _attr_to_key["keys"] = "keys_key"
-
-    keys_key = "keys"
-
-    @dict_attribute
-    def keys(self):
-        pass
-
     @classmethod
-    def get_sensor_paths(cls, content, current_path) -> Sequence[str]:
+    def get_sensor_paths(cls, content, current_path) -> Iterable[str]:
         """
-        navigates the content, appending to the path.
+        navigates the content, yielding the correct xpath in the way
         """
         if isinstance(content, list):
             for value in content:
@@ -333,10 +322,33 @@ class DictElementData(DictSubTreeData):
     @lru_cache(maxsize=None)
     def sensor_paths(self) -> Sequence[str]:
         """
-        Returns the sensor paths of all containers  of the element.
+        Returns the sensor paths of all containers of the element.
+        We cache to avoid doing this multiple times since metrics should be immutable
         """
         paths = list(self.get_sensor_paths(self.content, self.path))
         return paths
+
+    def get_elements(self) -> Sequence[SubTreeData]:
+        '''
+        Returns a list of the elements included.
+        The output should follow the element protocol
+        Not all metrics will have it, and it is not implemented by default
+        '''
+        raise NotImplementedError("Not implemented")
+
+
+
+
+# The next could also be its own abstract class from SubTreeData, but to avoid multiple inheritance, we wont use it.
+class DictElementData(DictSubTreeData):
+    """
+    An element is a particular subtree with only one element (e.g. an interface, a qos queue, a fan, etc.)
+    Many of the "standard" operations we provide only apply to metrics that contain a single element.
+    TSDBs actually store elements (metrics): an entity represented by a key (e.g. labels), ana a value (although you can normally send many values in the same payload)
+    """
+    @dict_attribute
+    def keys(self):
+        pass
 
     def get_elements(self) -> "Sequence[DictElementData]":
         return [self]
