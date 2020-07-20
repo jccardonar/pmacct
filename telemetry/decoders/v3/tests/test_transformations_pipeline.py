@@ -133,9 +133,18 @@ class TestTransformation:
         new_metric = new_state.metric
         assert new_metric.number == 2
         assert not new_state.warnings
+        assert new_state.error_metric is None
 
         assert metric.number == None
         new_state = MetricState(metric).convert(converter).convert(converter).convert(warning_if_two).convert(converter)
+        assert new_state.metric
+        new_metric = new_state.metric
+        assert new_metric.number == 3
+        assert new_state.warnings
+
+        # same as last, but using convert_raiser_error
+        assert metric.number == None
+        new_state = MetricState(metric).convert(converter).convert(converter).convert_raiser_error(warning_if_two).convert(converter)
         assert new_state.metric
         new_metric = new_state.metric
         assert new_metric.number == 3
