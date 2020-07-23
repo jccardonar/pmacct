@@ -48,15 +48,24 @@ T = TypeVar("T", bound="TransformationBase")
 class TransformationBase(ABC):
 
     TRANSFORMATIONS: Dict[str, Type] = {}
-    DICT_KEY:Optional[str] = None
+    _dict_key:Optional[str] = None
+
+    @classmethod
+    def dict_key(cls):
+        '''
+        Returns _dict_key if it is none, if not it returns the class name.
+        '''
+        if cls._dict_key is None:
+            return cls.__name__
+        return cls._dict_key
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        if cls.DICT_KEY is None:
+        if cls.dict_key() is None:
             return
-        if cls.DICT_KEY in cls.TRANSFORMATIONS:
-            raise InvalidTransformationConstruction(f"cls.DICT_KEY {cls.DICT_KEY} for {cls} is already used by {cls.TRANSFORMATIONS[cls.DICT_KEY]}")
-        cls.TRANSFORMATIONS[cls.DICT_KEY] = cls
+        if cls.dict_key() in cls.TRANSFORMATIONS:
+            raise InvalidTransformationConstruction(f"cls.dict_key {cls.dict_key()} for {cls} is already used by {cls.TRANSFORMATIONS[cls.dict_key()]}")
+        cls.TRANSFORMATIONS[cls.dict_key()] = cls
 
     @classmethod
     def from_dict(cls: T, config: Dict[str, Any]) -> T:
@@ -69,7 +78,7 @@ class TransformationBase(ABC):
     def to_dict(self) -> Dict[str, Any]:
         '''
         Returns the configuration of the transformation to a dict. Not all transformation would have it.
-        If they do THEY MUST define an unique cls.DICT_KEY, also if they define a cls.DICT_KEY they should
+        If they do THEY MUST define an unique cls.dict_key, also if they define a cls.dict_key they should
         support from_dict and to_dict (which unfortunatly, I dont know how to simple test)
         '''
         raise NotImplementedError
@@ -112,7 +121,7 @@ class InvalidTransformationdDump(TransformationException):
 
 KEY_TRANSFORMATION_NAME = "transformation"
 KEY_CONFIG = "config"
-REQUIRED_KEYS = set([KEY_TRANSFORMATION_NAME, KEY_CONFIG])
+REQUIRED_KEYS = set([KEY_CONFIG])
 
 def load_transformation(config: Dict[str, Any]) -> TransformationBase:
     '''
@@ -127,10 +136,10 @@ def load_transformation(config: Dict[str, Any]) -> TransformationBase:
         raise InvalidTransformationConstruction(f"Missing {missing} keys in the config dictionary")
     tranformation_id = config[KEY_TRANSFORMATION_NAME]
     if tranformation_id not in TransformationBase.TRANSFORMATIONS:
-        raise InvalidTransformationConstruction(f"{tranformation_id} not found in classes. Make sure the class defines a proper DICT_KEY")
+        raise InvalidTransformationConstruction(f"{tranformation_id} not found in classes. Make sure the class defines a proper dict_key")
     tranformation_class = TransformationBase.TRANSFORMATIONS[tranformation_id]
     try:
-        transformation = tranformation_class(config[KEY_CONFIG])
+        transformation = tranformation_class.from_dict(config[KEY_CONFIG])
     except Exception as e:
         raise InvalidTransformationConstruction("Error constructing tranfromation") from e
     return transformation
@@ -139,23 +148,23 @@ def load_transformation(config: Dict[str, Any]) -> TransformationBase:
 def dump_transformation(transformation: TransformationBase) -> Dict[str, Any]:
     '''
     Dumps a transforamtion to a dict, if possible. Uses the to_dict function and builds the dict with the correct keys.
-    :param transformation: A transformation. Its class must support the to_dict function and have a its DICT_KEY defined.
+    :param transformation: A transformation. Its class must support the to_dict function and have a its dict_key defined.
     '''
-    if transformation.__class__.DICT_KEY not in TransformationBase.TRANSFORMATIONS:
-        raise InvalidTransformationdDump(f"{transformation.__class__} does not have a proper DICT_KEY. Define it if you want to dump it")
+    if transformation.__class__.dict_key() not in TransformationBase.TRANSFORMATIONS:
+        raise InvalidTransformationdDump(f"{transformation.__class__} does not have a proper dict_key. Define it if you want to dump it")
 
     try:
         config = transformation.to_dict()
     except Exception as e:
         raise InvalidTransformationdDump("We could not dump transformation to dict") from e
 
-    return {KEY_TRANSFORMATION_NAME: TransformationBase.TRANSFORMATIONS[transformation.__class__.DICT_KEY], KEY_CONFIG: config}
+    return {KEY_TRANSFORMATION_NAME: transformation.__class__.dict_key(), KEY_CONFIG: config}
 
 def load_transformations(configs: Iterable[Dict[str, Any]]) -> Sequence[TransformationBase]:
     '''
     Loads multiple transformations 
     '''
-    return [load_transformation(c) for x in configs]
+    return [load_transformation(c) for c in configs]
 
 def dump_transformations(tranformations: Iterable[TransformationBase]) -> Sequence[Dict[str, Any]]:
     '''
@@ -169,7 +178,9 @@ class MetricTransformationBase(TransformationBase):
     A skeleton for a transformation that stores data per path.
     """
 
-    def __init__(self, data_per_path):
+    def __init__(self, data_per_path=None):
+        if data_per_path is None:
+            data_per_path = {}
         self.data_per_path = data_per_path
 
 

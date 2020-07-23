@@ -1,18 +1,24 @@
 from abc import abstractmethod
 from enum import Flag, auto
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union, Iterable
 
 import ujson as json
 from pygtrie import CharTrie
 
-from base_transformation import MetricTransformationBase, TransformationException
+from base_transformation import (
+    TransformationBase,
+    MetricTransformationBase,
+    TransformationException,
+    load_transformation,
+    dump_transformation,
+)
 from encoders.base import Field, InternalMetric, MetricExceptionBase
 
 RANGE_NUMERS = [str(x) for x in range(0, 100)]
 HIERARCHICAL_TYPES = (dict, list)
 
-# TODO: First try to use caching in a trie, since this domites
-# some tests. More work is needed
+# TODO: First try to use caching in a trie, since accessing data was the more consuming task
+# More work might be needed
 # key here was to cache __contains__
 class CacheCharTrie(CharTrie):  # pylint: disable=too-many-ancestors
     def __init__(self, *args, **kargs):
@@ -20,7 +26,6 @@ class CacheCharTrie(CharTrie):  # pylint: disable=too-many-ancestors
         self.cache_node = {}
         self.cache = {}
         self.cache_item = {}
-        self.complain = False
 
     def _get_node(self, key, *args, **kargs):
         if key in self.cache:
@@ -53,6 +58,167 @@ def get_trie(config, key):
     extra_keys_trie = CacheCharTrie()
     extra_keys_trie.update(paths)
     return extra_keys_trie
+
+
+def get_trie_from_sequence(a_list: Iterable[str]) -> CacheCharTrie:
+    extra_keys_trie = CacheCharTrie()
+    extra_keys_trie.update({x: True for x in a_list})
+    return extra_keys_trie
+
+
+def get_trie_from_dict(a_dict: Dict) -> CacheCharTrie:
+    extra_keys_trie = CacheCharTrie()
+    extra_keys_trie.update(a_dict)
+    return extra_keys_trie
+
+
+class OptionsFields(Flag):
+    """
+    Used to identify multiple types where transformation 
+    should be applied.
+    """
+
+    NO_OPTION = 0
+    LISTS = auto()
+    FIELDS = auto()  # a field is another field level.
+    HIERARCHIES = LISTS | FIELDS
+
+    def to_list(self) -> Sequence[str]:
+        """
+        Returns a list representing the enum. This actually covers a more complex case with not overalapping 
+
+        >>> OptionsFields.LISTS.to_list()
+        ['LISTS']
+        >>> (OptionsFields.LISTS | OptionsFields.FIELDS).to_list()
+        ['HIERARCHIES']
+        """
+        if self.name:
+            return [self.name]
+        # I do this crazy method since decompose is tno a public function.
+        return str(self).split(".")[1].split("|")
+
+
+class GetValuesForContentMixin:
+    PATHS_KEY: str = "path_list"
+    OPTIONS_KEY: str = "options"
+    OPTIONS_LISTS: Sequence["str"] = ["leaf_names"]
+    # OTHERS_PARAMS maps properties to values in the dict
+    OTHERS_PARAMS: Sequence["str"] = []
+
+    @classmethod
+    def from_dict(cls, config):
+        # Wel'll make a copy of the dict and modify it to fit the parameters
+        class_config = config.copy()
+        path_list = class_config.pop(cls.PATHS_KEY, {})
+        paths = get_trie_from_sequence(path_list)
+        return cls(paths=paths, **class_config)
+
+    def to_dict(self):
+        output_dict = {}
+        if self.data_per_path:
+            output_dict[self.PATHS_KEY] =  list(self.data_per_path)
+        # Options requires special constructor, since it is a list and we store internally as an enum. Also, we have to store it as text.
+        output_dict["options"] = self.options.to_list()
+
+        for prop in self.OPTIONS_LISTS:
+            if prop in output_dict:
+                continue
+            prop_value = getattr(self, prop, None)
+            if prop_value:
+                output_dict[prop] = list(prop_value)
+
+        for prop in self.OTHERS_PARAMS:
+            if prop in output_dict:
+                continue
+            prop_value = getattr(self, prop, None)
+            if prop_value:
+                output_dict[prop] = prop_value
+        return output_dict
+
+
+class GetSequenceOfTransformsMixin:
+    TRANSFORMATIONS_KEY = "transformations"
+
+    @classmethod
+    def from_dict(cls, config):
+        trasnformations = []
+        for tranformation_config in config.get(cls.TRANSFORMATIONS_KEY, []):
+            transformation = load_transformation(tranformation_config)
+            trasnformations.append(transformation)
+
+        return cls(trasnformations)
+
+    def to_dict(self):
+        tranformation_configs = []
+        for transformation in self.transformations:
+            transformation_config = dump_transformation(transformation)
+            tranformation_configs.append(transformation_config)
+        return {self.TRANSFORMATIONS_KEY: tranformation_configs}
+
+
+class GetTrieFromListMixin:
+    PATHS_KEY = "path_list"
+
+    @classmethod
+    def from_dict(cls, config):
+        paths = get_trie_from_sequence(config[cls.PATHS_KEY])
+        return cls(paths)
+
+    def to_dict(self):
+        return {self.PATHS_KEY: list(self.data_per_path)}
+
+
+class GetTrieFromDictMixin:
+    PATHS_KEY = "path_info"
+
+    @classmethod
+    def from_dict(cls, config):
+        paths = get_trie_from_dict(config[cls.PATHS_KEY])
+        return cls(paths)
+
+    def to_dict(self):
+        return {self.PATHS_KEY: dict(self.data_per_path)}
+
+
+class SimpleConstructorMixin:
+    @classmethod
+    def from_dict(cls, config):
+        return cls()
+
+    def to_dict(self):
+        return {}
+
+
+class GetDictMixin:
+    """
+    Similar to GetTrieFromDictMixin but without dumping the content in a trie.
+    """
+
+    PATHS_KEY = "path_info"
+
+    @classmethod
+    def from_dict(cls, config):
+        paths = dict(config[cls.PATHS_KEY])
+        return cls(paths)
+
+    def to_dict(self):
+        return {self.PATHS_KEY: dict(self.data_per_path)}
+
+
+class GetListMixin:
+    """
+    Similar to GetTrieFromDictMixin but without dumping the content in a trie.
+    """
+
+    PATHS_KEY = "path_list"
+
+    @classmethod
+    def from_dict(cls, config):
+        paths = list(config[cls.PATHS_KEY])
+        return cls(paths)
+
+    def to_dict(self):
+        return {self.PATHS_KEY: list(self.data_per_path)}
 
 
 def transformation_factory(key, data):
@@ -144,6 +310,9 @@ class TransformationPerEncodingPath(MetricTransformationBase):
     Applies a transformation per encoding path. Used to quickly filter paths.
     """
 
+    PATHS_KEY = "transformation_per_path"
+    DEFAULT_KEY = "default"
+
     def __init__(self, transformation_per_path, default):
         self.transformation_per_path = transformation_per_path
         self.default = default
@@ -159,20 +328,32 @@ class TransformationPerEncodingPath(MetricTransformationBase):
         else:
             yield metric
 
+    @classmethod
+    def from_dict(cls, config):
+        # all transformations must support the from_dict construction.
+        transformation_per_path = {}
+        default_transformation = load_transformation(config[cls.DEFAULT_KEY])
+        for path, tranformation_config in config.get(cls.PATHS_KEY, {}).items():
+            transformation = load_transformation(tranformation_config)
+            transformation_per_path[path] = transformation
 
-class EqualTransformation(MetricTransformationBase):
+        return cls(transformation_per_path, default_transformation)
+
+    def to_dict(self):
+        output_dict = {self.DEFAULT_KEY: dump_transformation(self.default)}
+        transformation_per_path = {}
+        for path, transformation in self.transformation_per_path.items():
+            transformation_config = dump_transformation(transformation)
+            transformation_per_path[path] = transformation_config
+        output_dict[self.PATHS_KEY] = transformation_per_path
+        return output_dict
+
+
+class EqualTransformation(SimpleConstructorMixin, MetricTransformationBase):
     """
     Used for cases where we apply a transformation but we
     just want the same metric
     """
-    DICT_KEY = "EqualTransformation"
-
-    @classmethod
-    def from_dict(cls, config):
-        return EqualTransformation()
-
-    def to_dict(self):
-        return {}
 
     def __init__(self):
         super().__init__({})
@@ -185,7 +366,7 @@ class EqualTransformation(MetricTransformationBase):
 EQUAL_TRANSFORMATION = EqualTransformation()
 
 
-class FilterMetric(MetricTransformationBase):
+class FilterMetric(GetListMixin, MetricTransformationBase):
     """
     We just filter by encoding path. Other more complex filters can be done,
     but we dont need the now.
@@ -195,13 +376,6 @@ class FilterMetric(MetricTransformationBase):
         if metric.path in self.data_per_path:
             return
         yield metric
-
-
-class OptionsFields(Flag):
-    NO_OPTION = 0
-    LISTS = auto()
-    FIELDS = auto()  # a field is another field level.
-    HIERARCHIES = LISTS | FIELDS
 
 
 # what to select:
@@ -338,7 +512,7 @@ class ContentTransformation(MetricTransformationBase):
         pass
 
 
-class FieldTransformation(ContentTransformation):
+class FieldTransformation(GetValuesForContentMixin, ContentTransformation):
     """
     A transformation where the field transformtion is simple and done
     in a separate function.
@@ -361,13 +535,14 @@ class FieldTransformation(ContentTransformation):
         return new_fields
 
 
-
 class ValueMapper(FieldTransformation):
     """
     Maps values. Good for transforming enums from ints to strings, strings to strings, or viceversa.
     """
+    OTHERS_PARAMS = FieldTransformation.OTHERS_PARAMS
+    OTHERS_PARAMS.append("mapper")
+    OTHERS_PARAMS.append("default")
 
-    @abstractmethod
     def field_transformation(self, key, value):
         return self.mapper.get(value, self.default)
 
@@ -377,6 +552,7 @@ class ValueMapper(FieldTransformation):
         self.mapper = mapper
         self.default = default
         super().__init__(*args, **kargs)
+
 
 
 class ConvertToList(FieldTransformation):
@@ -415,7 +591,7 @@ class WrapContent:
         yield metric.replace(content={self.containers: metric.content})
 
 
-class FieldToString(ContentTransformation):
+class FieldToString(GetValuesForContentMixin, ContentTransformation):
     @staticmethod
     def string_field(value):
         if isinstance(value, str):
@@ -483,8 +659,8 @@ class FlattenFunctions:
         return name
 
 
-class TransformationPipeline(MetricTransformationBase):
-    def __init__(self, transformations):
+class TransformationPipeline(GetSequenceOfTransformsMixin, MetricTransformationBase):
+    def __init__(self, transformations: Sequence[TransformationBase]):
         self.transformations = transformations
         super().__init__(None)
 
@@ -505,7 +681,9 @@ class KeysWithDoubleName(MetricExceptionBase):
     pass
 
 
-class FlattenHeaders(MetricTransformationBase, FlattenFunctions):
+class FlattenHeaders(
+    SimpleConstructorMixin, MetricTransformationBase, FlattenFunctions
+):
     """
     Flattens metadata into content of the metric.
     Design decisions:
@@ -560,7 +738,12 @@ class InvalidFlatteningPath(MetricExceptionBase):
     pass
 
 
-class FlattenHierarchies(ContentTransformation, FlattenFunctions):
+class FlattenHierarchies(
+    GetValuesForContentMixin, ContentTransformation, FlattenFunctions
+):
+    OPTIONS_LISTS = []
+    OTHERS_PARAMS = ["keep_naming"]
+
     def __init__(self, keep_naming=False, paths=None, options=None):
         if options is None:
             # if there are paths, keep empty, if there are not, set all
@@ -611,7 +794,7 @@ class FlattenHierarchies(ContentTransformation, FlattenFunctions):
         return new_fields
 
 
-class CombineContentTransformation(ContentTransformation):
+class CombineContentTransformation(GetSequenceOfTransformsMixin, ContentTransformation):
     def __init__(self, transformations: Sequence["ContentTransformation"]):
         super().__init__([], None)
         self.transformations = transformations
@@ -659,7 +842,7 @@ class ExsitingName(MetricExceptionBase):
     pass
 
 
-class RenameContent(ContentTransformation):
+class RenameContent(GetTrieFromDictMixin, ContentTransformation):
     def __init__(self, paths):
         super().__init__([], paths)
 
@@ -687,7 +870,7 @@ class RKEWrongType(MetricExceptionBase):
     pass
 
 
-class RenameKeys(MetricTransformationBase):
+class RenameKeys(GetDictMixin, MetricTransformationBase):
     def transform(self, metric, warnings=None):
         """
         Simply modify the keys.
@@ -848,7 +1031,7 @@ class MetricSpliting(MetricTransformationBase):
         return fields, changed
 
 
-class ExtraKeysTransformation(MetricSpliting):
+class ExtraKeysTransformation(GetTrieFromListMixin, MetricSpliting):
     def split(self, metric, fields, path, keys, key_state, warnings):
         new_keys = keys
         current_keys = metric.keys
@@ -866,7 +1049,7 @@ class NotAList(MetricExceptionBase):
     pass
 
 
-class SplitLists(MetricSpliting):
+class SplitLists(GetTrieFromListMixin, MetricSpliting):
     def split(self, metric, fields, path, keys, key_state, warnings):
         new_keys = keys
         current_content = fields
@@ -886,7 +1069,7 @@ class SplitLists(MetricSpliting):
         return current_content, True
 
 
-class CombineTransformationSeries(MetricSpliting):
+class CombineTransformationSeries(GetSequenceOfTransformsMixin, MetricSpliting):
     """
     This is kind of broken implementation, since it has state. Not sure how to do it better
     without needing to pack and unpack too many times.
@@ -936,7 +1119,7 @@ class MetricWarningDummy(MetricExceptionBase):
     pass
 
 
-class MetricTransformDummy(MetricTransformationBase):
+class MetricTransformDummy(SimpleConstructorMixin, MetricTransformationBase):
     def transform(self, metric, warnings=None):
         if warnings is None:
             warnings = []
@@ -944,7 +1127,7 @@ class MetricTransformDummy(MetricTransformationBase):
         yield metric
 
 
-class RemoveContentHierarchies(MetricTransformationBase):
+class RemoveContentHierarchies(SimpleConstructorMixin, MetricTransformationBase):
     """
     Forces content to be a dict, it might yield multiple metrics.
         - if it is dict, it remains.
