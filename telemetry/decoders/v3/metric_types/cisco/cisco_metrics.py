@@ -20,7 +20,7 @@ from abc import abstractmethod
 import ujson as json
 
 from metric_types import AmbiguousContent, DictElementData, DictSubTreeData, GrpcRaw
-from metric_types.cisco.cisco_transformations_functions import process_cisco_grpc_msg
+from metric_types.cisco.cisco_process_msg  import process_cisco_grpc_msg
 from .cisco_gpbvkv import PivotingCiscoGPBKVDict
 
 
