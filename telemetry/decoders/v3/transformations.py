@@ -1,9 +1,9 @@
 from abc import abstractmethod
 from enum import Flag, auto
 from typing import Any, Dict, Optional, Sequence, Union, Iterable
+from cache_char_trie import get_trie, get_trie_from_sequence, get_trie_from_dict, CacheCharTrie
 
 import ujson as json
-from pygtrie import CharTrie
 
 from base_transformation import (
     TransformationBase,
@@ -16,61 +16,6 @@ from encoders.base import Field, InternalMetric, MetricExceptionBase
 
 RANGE_NUMERS = [str(x) for x in range(0, 100)]
 HIERARCHICAL_TYPES = (dict, list)
-
-# TODO: First try to use caching in a trie, since accessing data was the more consuming task
-# More work might be needed
-# key here was to cache __contains__
-class CacheCharTrie(CharTrie):  # pylint: disable=too-many-ancestors
-    def __init__(self, *args, **kargs):
-        super().__init__(*args, **kargs)
-        self.cache_node = {}
-        self.cache = {}
-        self.cache_item = {}
-
-    def _get_node(self, key, *args, **kargs):
-        if key in self.cache:
-            return self.cache[key]
-        value = super()._get_node(key, *args, **kargs)
-        self.cache[key] = value
-        return value
-
-    def has_node(self, key):
-        if key in self.cache_node:
-            return self.cache_node[key]
-        value = super().has_node(key)
-        self.cache_node[key] = value
-        return value
-
-    def __contains__(self, key):
-        if key in self.cache_item:
-            return self.cache_item[key]
-        value = super().__contains__(key)
-        self.cache_item[key] = value
-        return value
-
-
-def get_trie(config, key):
-    paths = config[key]
-    if isinstance(paths, list):
-        extra_keys_trie = CacheCharTrie()
-        extra_keys_trie.update({x: True for x in paths})
-        return extra_keys_trie
-    extra_keys_trie = CacheCharTrie()
-    extra_keys_trie.update(paths)
-    return extra_keys_trie
-
-
-def get_trie_from_sequence(a_list: Iterable[str]) -> CacheCharTrie:
-    extra_keys_trie = CacheCharTrie()
-    extra_keys_trie.update({x: True for x in a_list})
-    return extra_keys_trie
-
-
-def get_trie_from_dict(a_dict: Dict) -> CacheCharTrie:
-    extra_keys_trie = CacheCharTrie()
-    extra_keys_trie.update(a_dict)
-    return extra_keys_trie
-
 
 class OptionsFields(Flag):
     """
@@ -751,7 +696,7 @@ class FlattenHierarchies(
             if paths is None:
                 options = ["HIERARCHIES"]
         if paths is None:
-            paths = CharTrie()
+            paths = CacheCharTrie()
         super().__init__(options, paths)
         self.keep_naming = keep_naming
         self.transform_list_elements = True

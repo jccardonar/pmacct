@@ -39,29 +39,10 @@ import cisco_telemetry_pb2
 from types import FunctionType, GeneratorType
 from typing import Tuple, Optional, Any
 import collections
-from metric_types.cisco_metrics import GrpcRawJsonToCiscoGrpcGPB, CiscoGrpcGPBToCiscoGrpcJson, CiscoGrpcJsonToCiscoElement, GrpcRawGPBToCiscoGrpcGPB, GrpcRawToNxGrpcGPB, NxGrpcGPBToNXGrpcKV, CiscoElementToNXElement, CiscoGrpcGPBToCiscoGrpcKV
-from cisco_gbpvk_tools.cisco_gpbvkv import PivotingCiscoGPBKVDict
+from metric_types.cisco import decode_raw_json, decode_raw_gpvkv, decode_raw_nx
 from exceptions import PmgrpcdException
 
 TRACER = lib_pmgrpcd.TRACER.add_labels({"vendor": "Cisco"})
-
-def decode_raw_json(raw_metric):
-    cisco_grpc_gpb_metric = GrpcRawJsonToCiscoGrpcGPB().convert(raw_metric)
-    cisco_json = CiscoGrpcGPBToCiscoGrpcJson().convert(cisco_grpc_gpb_metric)
-    element_decoder = CiscoGrpcJsonToCiscoElement()
-    return cisco_json, element_decoder
-
-def decode_raw_gpvkv(raw_metric):
-    cisco_grpc_gpb_metric = GrpcRawGPBToCiscoGrpcGPB().convert(raw_metric)
-    cisco_gpbkv = CiscoGrpcGPBToCiscoGrpcKV().convert(cisco_grpc_gpb_metric)
-    element_decoder = PivotingCiscoGPBKVDict()
-    return cisco_gpbkv, element_decoder
-
-def decode_raw_nx(raw_metric):
-    cisco_grpc_gpb_metric = GrpcRawToNxGrpcGPB().convert(raw_metric)
-    cisco_nx_gpbkv = NxGrpcGPBToNXGrpcKV().convert(cisco_grpc_gpb_metric)
-    element_decoder = PivotingCiscoGPBKVDict()
-    return cisco_nx_gpbkv, element_decoder
 
 def process_cisco_kv(new_msg):
     """
@@ -381,3 +362,22 @@ def find_encoding_and_decode(new_msg):
 
     encoding_type = "unknown"
     return encoding_type, grpc_message
+#
+#   pmacct (Promiscuous mode IP Accounting package)
+#   pmacct is Copyright (C) 2003-2019 by Paolo Lucente
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+#   pmgrpcd and its components are Copyright (C) 2018-2019 by:

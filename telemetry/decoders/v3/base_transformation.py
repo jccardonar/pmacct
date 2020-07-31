@@ -23,10 +23,6 @@ class TransformationException(PmgrpcdException):
         super().__init__(text)
 
 
-class NotAConverstion(TransformationException):
-    pass
-
-
 # from https://stackoverflow.com/questions/34073370/best-way-to-receive-the-return-value-from-a-python-generator
 class GeneratorReturnAfterFor:
     def __init__(self, gen):
