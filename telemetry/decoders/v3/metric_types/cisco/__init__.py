@@ -1,1 +1,1 @@
-from .cisco_decodings import decode_raw_json, decode_raw_gpvkv, decode_raw_nx
+from .cisco_decodings import  json_pipeline, gpvkv_pipeline, nx_gpvk_pipeline, nx_api_pipeline

@@ -9,23 +9,17 @@ from .utils_test import (
     pytest_generate_tests,
 )
 from metric_types.base_types import GrpcRaw
-from metric_types.cisco_metrics import (
+from metric_types.cisco.cisco_metrics import (
     CiscoGrpcGPB,
     EncodingNotFound,
     CiscoEncodings,
     CiscoGrpcKV,
     CiscoGrpcJson,
-    NxGrpcGPB,
-    NXGrpcKV,
-    NXElement,
     CiscoElement,
     CiscoGrpcGPB,
     EncodingNotFound,
     CiscoEncodings,
     CiscoGrpcKV,
-    NxGrpcGPB,
-    NXGrpcKV,
-    NXElement,
     CiscoElement,
     GrpcRawToCiscoGrpcGPB,
     GrpcRawJsonToCiscoGrpcGPB,
@@ -33,13 +27,18 @@ from metric_types.cisco_metrics import (
     CiscoGrpcJsonToCiscoElement,
     GrpcRawGPBToCiscoGrpcGPB,
     CiscoGrpcGPBToCiscoGrpcKV,
-    NxGrpcGPBToNXGrpcKV,
+)
+from metric_types.cisco.nx import (
+    NxGrpcGPB,
+    NXGrpcKV,
+    NXElement,
     GrpcRawToNxGrpcGPB,
+    NxGrpcGPBToNXGrpcKV,
     CiscoElementToNXElement,
 )
 from .utils_test import check_metric_properties, check_basic_properties
-from cisco_gbpvk_tools.cisco_gpbvkv import PivotingCiscoGPBKVDict
-from nx_tools.nx_api import PivotingNXApiDict
+from metric_types.cisco.cisco_gpbvkv import PivotingCiscoGPBKVDict
+from metric_types.cisco.nx_api import PivotingNXApiDict
 
 DATA_FOLDER = data_folder()
 CISCO_DUMP_FOLDER = DATA_FOLDER / "cisco_dumps"
@@ -742,7 +741,7 @@ class TestCiscoGPVKV:
             cisco_gpbkv = CiscoGrpcGPBToCiscoGrpcKV().convert(cisco_grpc_gpb_metric)
             assert cisco_gpbkv.content == cisco_gpbkv.data["data_gpbkv"]
             metric_test_gpvkv(cisco_gpbkv)
-            for element in PivotingCiscoGPBKVDict().transform(cisco_gpbkv):
+            for element in PivotingCiscoGPBKVDict(element_class=CiscoElement).transform(cisco_gpbkv):
                 assert element.path
                 assert element.keys is not None
                 metric_cisco_element(element)
@@ -777,7 +776,7 @@ class TestCiscoNX:
             assert cisco_nx_gpbkv.content == cisco_nx_gpbkv.data["data_gpbkv"]
             assert cisco_nx_gpbkv.subscription_id
 
-            for nx_elmement in PivotingCiscoGPBKVDict().transform(cisco_nx_gpbkv):
+            for nx_elmement in PivotingCiscoGPBKVDict(element_class=CiscoElement).transform(cisco_nx_gpbkv):
                 metric_cisco_element_nx(nx_elmement)
 
                 if "api" in str(file_name):

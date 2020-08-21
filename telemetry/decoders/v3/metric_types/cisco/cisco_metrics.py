@@ -300,4 +300,6 @@ class CiscoGrpcJsonToCiscoElement:
             yield CiscoElement(element_data)
 
 
-# Transformations from KV to Cisco elements are in module cisco_gpbvkv
+# the next is a funciton because it uses a PivotingCiscoGPBKVDict defined in cisco_gpbvkv.py
+def cisco_grpc_gpbkv_to_cisco_element(*args, **kargs):
+    return PivotingCiscoGPBKVDict(element_class=CiscoElement, *args, **kargs)

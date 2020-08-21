@@ -28,19 +28,21 @@ import cisco_grpc_dialout_pb2_grpc
 from google.protobuf.json_format import MessageToDict
 import ujson as json
 import lib_pmgrpcd
-from lib_pmgrpcd import ServicerMiddlewareClass, create_grpc_headers
+from lib_pmgrpcd import ServicerMiddlewareClass, create_grpc_headers, on_error, on_warnings
 import time
 from export_pmgrpcd import FinalizeTelemetryData, finalize_telemetry_data
 import base64
 from debug import get_lock
 from metric_types.base_types  import GrpcRaw
+from typing import Sequence
 
 import cisco_telemetry_pb2
 from types import FunctionType, GeneratorType
 from typing import Tuple, Optional, Any
 import collections
-from metric_types.cisco import decode_raw_json, decode_raw_gpvkv, decode_raw_nx
+from metric_types.cisco import json_pipeline, gpvkv_pipeline, nx_gpvk_pipeline, nx_api_pipeline
 from exceptions import PmgrpcdException
+from base_transformation import TransformationBase, TransformationState
 
 TRACER = lib_pmgrpcd.TRACER.add_labels({"vendor": "Cisco"})
 
@@ -56,12 +58,27 @@ def process_cisco_kv(new_msg):
     return grpc_message
 
 
+ENCONDINGS_WITH_FIX_PIPELINE = set(["json", "gpbkv", "nx_api"])
+
+
 class gRPCMdtDialoutServicer(
     cisco_grpc_dialout_pb2_grpc.gRPCMdtDialoutServicer,
     metaclass=ServicerMiddlewareClass,
 ):
     def __init__(self):
         PMGRPCDLOG.info("Cisco: Initializing gRPCMdtDialoutServicer()")
+
+        # Pipeline definitino.
+        # In most encodings, pipeline does not depend on 
+        # metric, but only on initial conditions. So, let us find it
+        self._fix_pipeline = None
+        if lib_pmgrpcd.OPTIONS.cenctype == "json":
+            self._fix_pipeline = json_pipeline()
+        elif lib_pmgrpcd.OPTIONS.cenctype == "gpbkv":
+            self._fix_pipeline = gpvkv_pipeline()
+        elif lib_pmgrpcd.OPTIONS.cenctype == "nx_api":
+            self._fix_pipeline = nx_api_pipeline()
+
 
     def MdtDialout2(self, msg_iterator, context):
         # breakpoint() if DEBUG_LOCK.acquire() else None
@@ -88,7 +105,7 @@ class gRPCMdtDialoutServicer(
 
         # Now go over the msgs
         for new_msg in msg_iterator:
-            # breakpoint() if get_lock() else None
+            breakpoint() if get_lock() else None
             PMGRPCDLOG.trace("Cisco new_msg iteration message")
 
             # TODO:
@@ -153,40 +170,13 @@ class gRPCMdtDialoutServicer(
         return
         yield
 
-    def find_encoding_and_decode(self, raw_metric) -> Tuple[Optional[str], Optional[Any], Optional[Any]]:
-        encoding_type = None
-        new_metric = None
-        element_transformation = None
+    def get_pipeline(self, metric) -> Optional[Sequence[TransformationBase]]:
+        '''
+        Returns None if no pipeline is found.
+        '''
+        if lib_pmgrpcd.OPTIONS.cenctype in ENCONDINGS_WITH_FIX_PIPELINE:
+            return self._fix_pipeline
 
-        if lib_pmgrpcd.OPTIONS.cenctype == "json":
-            try:
-                new_metric, element_transformation = decode_raw_json(raw_metric)
-            except Exception as e:
-                PMGRPCDLOG.trace(
-                    "ERROR: Direct json parsing of grpc_message failed with message:\n%s\n",
-                    e,
-                )
-                raise
-            encoding_type = "ciscojson"
-            return encoding_type, new_metric, element_transformation
-
-        elif lib_pmgrpcd.OPTIONS.cenctype == "gpbkv":
-            try:
-                new_metric, element_transformation = decode_raw_gpvkv(raw_metric)
-            except Exception as e:
-                PMGRPCDLOG.trace(
-                    "ERROR: Direct json parsing of grpc_message failed with message:\n%s\n",
-                    e,
-                )
-                raise
-            encoding_type = "ciscojson"
-            return encoding_type, new_metric, element_transformation
-
-        elif lib_pmgrpcd.OPTIONS.cenctype == "gpbcomp":
-            raise Exception("gpbcomp not supported in cisco")
-
-        encoding_type = "unknown"
-        return encoding_type, new_metric, None
 
     def cisco_processing(self, grpcPeer, new_msg):
         encoding_type = None
@@ -204,17 +194,15 @@ class gRPCMdtDialoutServicer(
         data = {"collection_data": grpcPeer, "content": new_msg.data}
         raw_metric = GrpcRaw(data)
 
-        # Find the encoding of the packet
-        try:
-            encoding_type, metric, element_transformation  = self.find_encoding_and_decode(raw_metric)
-        except Exception as e:
-            PMGRPCDLOG.error("Error decoding packet. Error is:  {}".format(e))
-            raise
+        pipeline = self.get_pipeline(raw_metric)
+        if pipeline is None:
+            raise PmgrpcdException("Pipeline not obtained")
 
-        for elem in element_transformation.transform(metric):
-            TRACER.trace_info("element_generated",)
+
+        metrics = TransformationState.apply_transformation(raw_metric, pipeline, on_error=on_error, on_warnings=on_warnings)
+        for metric in metrics:
             try:
-                returned = finalize_telemetry_data(elem)
+                returned = finalize_telemetry_data(metric)
             except Exception as e:
                 PMGRPCDLOG.trace("Error finalazing  message: %s", e)
                 TRACER.trace_error(e)
@@ -362,22 +350,3 @@ def find_encoding_and_decode(new_msg):
 
     encoding_type = "unknown"
     return encoding_type, grpc_message
-#
-#   pmacct (Promiscuous mode IP Accounting package)
-#   pmacct is Copyright (C) 2003-2019 by Paolo Lucente
-#
-#   This program is free software; you can redistribute it and/or modify
-#   it under the terms of the GNU General Public License as published by
-#   the Free Software Foundation; either version 2 of the License, or
-#   (at your option) any later version.
-#
-#   This program is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License
-#   along with this program; if not, write to the Free Software
-#   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-#
-#   pmgrpcd and its components are Copyright (C) 2018-2019 by:

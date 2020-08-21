@@ -3,7 +3,7 @@ Includes code to handle the nx api.
 '''
 from exceptions import PmgrpcdException
 from typing import List
-from metric_types.cisco_metrics import CiscoElement
+from .cisco_metrics import CiscoElement
 
 class NXMetricUnknownStructure(PmgrpcdException):
     pass

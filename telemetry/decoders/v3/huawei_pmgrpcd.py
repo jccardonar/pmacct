@@ -27,14 +27,16 @@ import huawei_grpc_dialout_pb2_grpc
 from lib_pmgrpcd import PMGRPCDLOG
 import ujson as json
 import lib_pmgrpcd
-from lib_pmgrpcd import ServicerMiddlewareClass, create_grpc_headers
+from lib_pmgrpcd import ServicerMiddlewareClass, create_grpc_headers, on_error, on_warnings
 from google.protobuf.json_format import MessageToDict
 import time
 from datetime import datetime
 from export_pmgrpcd import FinalizeTelemetryData, finalize_telemetry_data
 import base64
 from metric_types.base_types  import GrpcRaw
-from metric_types.huawei_metrics import GrpcRawGPBToHuaweiGrpcGPB, HuaweiGrpcGPBToHuaweiCompact, HuaweCompactToHuaweiElements, HuaweDecoderConstructor
+from metric_types.huawei.huawei_decoders import huawei_compact_pipeline
+from metric_types.huawei.huawei_metrics import HuaweDecoderConstructor
+from base_transformation import TransformationBase, TransformationState
 
 # TODO: Maybe move this to its own part, who knows
 import huawei_ifm_pb2
@@ -50,15 +52,20 @@ TRACER = lib_pmgrpcd.TRACER.add_labels({"vendor": "Huawei"})
 
 
 class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServicer, metaclass=ServicerMiddlewareClass):
+
     def __init__(self, huawei_mapper=None):
         if huawei_mapper is None:
             huawei_mapper = {}
         PMGRPCDLOG.info("Huawei: Initializing gRPCDataserviceServicer()")
+
         self.huawei_mapper_data = huawei_mapper
         if huawei_mapper is not None:
             self.huawei_decoder_constructor = HuaweDecoderConstructor(huawei_mapper)
+            self._compact_pipeline = huawei_compact_pipeline(self.huawei_decoder_constructor)
         else:
             self.huawei_decoder_constructor = None
+            self._compact_pipeline = None
+
 
         super().__init__()
 
@@ -140,6 +147,11 @@ class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServic
         return
         yield
 
+    def get_pipeline(self, metric):
+
+        if lib_pmgrpcd.OPTIONS.cenctype == "compact":
+            return self._compact_pipeline
+
 
     def huawei_processing(self, grpcPeer, new_msg):
 
@@ -152,36 +164,22 @@ class gRPCDataserviceServicer(huawei_grpc_dialout_pb2_grpc.gRPCDataserviceServic
 
         data = {"collection_data": grpcPeer, "content": new_msg.data}
         raw_metric = GrpcRaw(data)
-        # here, we could provide some decoding options for proto
-        huawei_gpb_metric = GrpcRawGPBToHuaweiGrpcGPB().convert(raw_metric)
+
 
         # The next part is to get the actual metric type and the 
         # transformation to elements.
         # Many metrics types send multiple measurements in a single packet.
-        # The idea is to split themm and treat them individually.
-        # If this is not desired, just use the EqualTransformation.
-        metric = None
-        to_element_transformation = None
+        pipeline = self.get_pipeline(raw_metric)
+        if pipeline is None:
+            raise PmgrpcdException("Pipeline not obtained")
 
-        if lib_pmgrpcd.OPTIONS.cenctype == "compact":
-            # here, we could provide some decoding options for proto
-            huawei_compact_metric = HuaweiGrpcGPBToHuaweiCompact().convert(huawei_gpb_metric)
-            metric = huawei_compact_metric
-            decoder = self.huawei_decoder_constructor.get_decoder(metric.module)
-            to_element_transformation = HuaweCompactToHuaweiElements(decoder)
-
-        if metric is None or to_element_transformation is None:
-            raise Exception("Encoding not found, or failing assigning metric")
-        # The next is tracing and stats
-
-        for elem in to_element_transformation.transform(metric):
-            TRACER.trace_info("element_generated",)
+        metrics = TransformationState.apply_transformation(raw_metric, pipeline, on_error=on_error, on_warnings=on_warnings)
+        for metric in metrics:
             try:
-                returned = finalize_telemetry_data(elem)
+                returned = finalize_telemetry_data(metric)
             except Exception as e:
                 PMGRPCDLOG.trace("Error finalazing  message: %s", e)
                 TRACER.trace_error(e)
-
 
 def huawei_processing(grpcPeer, new_msg):
     PMGRPCDLOG.debug("Huawei: Received GRPC-Data")

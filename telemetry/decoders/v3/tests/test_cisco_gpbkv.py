@@ -1,5 +1,6 @@
 import pytest
-from cisco_gbpvk_tools import cisco_gpbvkv
+from metric_types.cisco import cisco_gpbvkv
+from metric_types.cisco.cisco_metrics import CiscoElement
 
 gpvb_test_cases = [
     # empty case
@@ -884,7 +885,7 @@ class TestPivotDict:
         "original,expected", [(x["original"], x["expected"]) for x in gpvb_test_cases]
     )
     def test_pivot_dict(self, original, expected):
-        pivoter = cisco_gpbvkv.PivotingCiscoGPBKVDict()
+        pivoter = cisco_gpbvkv.PivotingCiscoGPBKVDict(CiscoElement)
         warnings = set()
         assert pivoter.pivot_telemetry_field(original, warnings) == expected
         assert not warnings

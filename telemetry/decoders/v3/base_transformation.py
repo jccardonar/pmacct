@@ -315,7 +315,7 @@ class TransformationState:
                     yield MetricState(new_metric)
             except TransformationException as e:
                 e.fields["tranformation"] = str(transformer)
-                yield MetricState(new_metric, error=e)
+                yield MetricState(metric_state.metric, error=e)
             # We fail for non TransformationException failures.
 
     def transform(self, transformer):
@@ -328,3 +328,24 @@ class TransformationState:
         for transf in transformers:
             current_state = current_state.transform(transf)
         return current_state
+
+    @classmethod
+    def apply_transformation(cls, metric: SubTreeData, pipeline, *, on_error, on_warnings) -> Sequence[SubTreeData]:
+        '''
+        Applies a pipeline to a metric, and returns directly the list of metrics. Does the heavy lifting of "lifting" metrics.
+        Function with side effects, since it might call on_error  and on_warnings
+        Receives a on_error callback to apply to all metric errors.
+        Receives n on_warnings callback to apply to the list of warnings.
+        '''
+        resulting_state = cls.from_metric(metric).pipeline(pipeline)
+        if resulting_state.warnings and on_warnings:
+            on_warnings(resulting_state.warnings)
+        metrics = []
+        for metric_state in resulting_state.metrics_state:
+            if metric_state.is_error:
+                if on_error:
+                    on_error(metric_state.error)
+                continue
+            metrics.append(metric_state.metric)
+        return metrics
+

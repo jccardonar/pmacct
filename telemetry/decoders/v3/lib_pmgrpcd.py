@@ -39,6 +39,13 @@ OPTIONS = None
 MISSGPBLIB = {}
 METRIC_EXPORTER = None
 
+def on_error(error, metric):
+    PMGRPCDLOG.trace("Error finalazing  message: %s", e)
+    TRACER.trace_error(e)
+
+def on_warnings(warnings):
+    for warning in warnings:
+        TRACER.trace_warning(warning)
 
 def parser_grpc_peer(peer: str) -> Tuple[str, str, str]:
     '''

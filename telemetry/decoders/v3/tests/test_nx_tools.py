@@ -1,5 +1,5 @@
 import pytest
-from nx_tools import nx_api
+from metric_types.cisco import nx_api
 
 nx_test_cases = [
     {"original": {}, "expected": {}, "paths": []},

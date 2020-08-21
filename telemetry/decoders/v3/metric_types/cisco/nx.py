@@ -16,6 +16,7 @@ from metric_types.cisco.cisco_metrics import (
     CiscoGrpcGPB,
     CiscoGrpcKV,
     GrpcRawGPBToCiscoGrpcGPB,
+    PivotingCiscoGPBKVDict,
 )
 from base_transformation import BaseConverter, SimpleConversion
 
@@ -82,7 +83,6 @@ class NXElement(CiscoElement):
 # Transformation from CiscoElement to NXElement
 # ---
 
-
 class CiscoElementToNXElement(SimpleConversion):
     """
     Converts CiscoElements to NXElements.
@@ -91,3 +91,6 @@ class CiscoElementToNXElement(SimpleConversion):
 
     ORIGINAL_CLASS = CiscoElement
     RESULTING_CLASS = NXElement
+
+def nx_grpckv_to_nx_element(*args, **kargs):
+    return PivotingCiscoGPBKVDict(element_class=NXElement, *args, **kargs)

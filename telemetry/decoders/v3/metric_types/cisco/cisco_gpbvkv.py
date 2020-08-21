@@ -51,7 +51,8 @@ class PivotingCiscoGPBKVDict:
     Class including methods to pivot the data from Cisco GBPKV when data is a python dictionary
     '''
 
-    def __init__(self, casting=False, cast_int64to_int=True):
+    def __init__(self, element_class, casting=False, cast_int64to_int=True):
+        self.element_class = element_class
         self.casting = casting
         self.cast_int64to_int = cast_int64to_int
 
@@ -62,9 +63,9 @@ class PivotingCiscoGPBKVDict:
         for element_content in pivoted_elements:
             element_data = metric.headers.copy()
             # we will be igonring timestamp right now.
-            element_data[metric.element_class.content_key] = element_content["content"]
-            element_data[metric.element_class.keys_key] = element_content["keys"]
-            yield metric.element_class(element_data)
+            element_data[self.element_class.content_key] = element_content["content"]
+            element_data[self.element_class.keys_key] = element_content["keys"]
+            yield self.element_class(element_data)
 
 
     def pivot_telemetry_fields(self, fields, warnings: List[Exception]) -> Sequence[Dict[str, Any]]:

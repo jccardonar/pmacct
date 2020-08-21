@@ -5,7 +5,7 @@ from .utils_test import (
     AbstractTestMetric,
     pytest_generate_tests
 )
-from metric_types.huawei_metrics import (
+from metric_types.huawei.huawei_metrics import (
     HuaweiGrpcGPB,
     HuaweiCompact,
     GrpcRawGPBToHuaweiGrpcGPB,
@@ -162,8 +162,8 @@ class TestHuaweiCompact:
             huawe_compact = HuaweiGrpcGPBToHuaweiCompact().convert(huawei_gpb)
             metric_huawei_compact(huawe_compact)
 
-            decoder = huawei_decoder_constructor.get_decoder(huawe_compact.module)
-            elem_decoder = HuaweCompactToHuaweiElements(decoder)
+            #decoder = huawei_decoder_constructor.get_decoder(huawe_compact.module)
+            elem_decoder = HuaweCompactToHuaweiElements(huawei_decoder_constructor)
             for elem in elem_decoder.transform(huawe_compact):
                 metric_element(elem)
                 assert elem.content is not None
