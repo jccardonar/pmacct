@@ -36,7 +36,7 @@ import base64
 from metric_types.base_types  import GrpcRaw
 from metric_types.huawei.huawei_decoders import huawei_compact_pipeline
 from metric_types.huawei.huawei_metrics import HuaweDecoderConstructor
-from base_transformation import TransformationBase, TransformationState
+from transformations.base_transformation import TransformationBase, TransformationState
 
 # TODO: Maybe move this to its own part, who knows
 import huawei_ifm_pb2

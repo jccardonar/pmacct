@@ -3,7 +3,7 @@ import importlib
 from exceptions import PmgrpcdException
 
 import huawei_telemetry_pb2
-from base_transformation import BaseConverter, SimpleConversion, TransformationBase
+from transformations.base_transformation import BaseConverter, SimpleConversion, TransformationBase
 from metric_types.base_types import (
     AmbiguousContent,
     DictElementData,

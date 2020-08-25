@@ -42,7 +42,7 @@ from typing import Tuple, Optional, Any
 import collections
 from metric_types.cisco import json_pipeline, gpvkv_pipeline, nx_gpvk_pipeline, nx_api_pipeline
 from exceptions import PmgrpcdException
-from base_transformation import TransformationBase, TransformationState
+from transformations.base_transformation import TransformationBase, TransformationState
 
 TRACER = lib_pmgrpcd.TRACER.add_labels({"vendor": "Cisco"})
 

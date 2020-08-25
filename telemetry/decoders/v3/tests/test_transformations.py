@@ -1,5 +1,5 @@
 import pytest
-from transformations import (
+from transformations.transformations import (
     EqualTransformation,
     ExtraKeysTransformation,
     SplitLists,
@@ -18,14 +18,14 @@ from transformations import (
     ValueMapper,
     RemoveContentHierarchies,
 )
-from base_transformation import (
+from transformations.base_transformation import (
     load_transformation,
     dump_transformation,
     load_transformations,
     dump_transformations,
 )
-import base_transformation
-import transformations
+from transformations import base_transformation
+from transformations import transformations
 
 from mock import Mock
 ma = Mock(wraps=load_transformation)

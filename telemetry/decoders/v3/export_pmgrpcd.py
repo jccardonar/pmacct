@@ -35,7 +35,7 @@ from abc import ABC, abstractmethod
 from debug import get_lock
 from encoders.cisco_kv import CiscoKVFlatten, NXEncoder
 from exceptions import PmgrpcdException
-from transformations import metric_to_json_dict
+from transformations.transformations import metric_to_json_dict
 import logging
 
 

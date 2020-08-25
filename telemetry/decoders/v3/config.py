@@ -29,11 +29,11 @@ from kafka_modules.kafka_avro_exporter import KafkaAvroExporter
 from kafka_modules.kafka_simple_exporter import KafkaExporter, load_topics_file
 from file_modules.file_producer import FileExporter
 from lib_pmgrpcd import PMGRPCDLOG
-from transformations import load_transformtions_from_file
+from transformations.transformations import load_transformtions_from_file
 from exceptions import PmgrpcdException
 import os
 import importlib
-from base_transformation import MetricTransformationBase
+from transformations.base_transformation import MetricTransformationBase
 
 
 class FileNotFound(PmgrpcdException):

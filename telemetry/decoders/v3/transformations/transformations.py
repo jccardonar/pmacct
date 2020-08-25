@@ -5,7 +5,7 @@ from cache_char_trie import get_trie, get_trie_from_sequence, get_trie_from_dict
 
 import ujson as json
 
-from base_transformation import (
+from .base_transformation import (
     TransformationBase,
     MetricTransformationBase,
     TransformationException,

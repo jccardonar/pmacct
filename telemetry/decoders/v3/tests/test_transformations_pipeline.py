@@ -1,5 +1,5 @@
 import pytest
-from base_transformation import (
+from transformations.base_transformation import (
     TransformationException,
     TransformationState,
     MetricState,

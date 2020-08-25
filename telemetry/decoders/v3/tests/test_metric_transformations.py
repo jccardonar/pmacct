@@ -1,8 +1,8 @@
 import pytest
 import json
 from encoders.base import InternalMetric
-from transformations import transformation_factory, MetricExceptionBase, load_transformtions_from_file
-from base_transformation import load_transformation, dump_transformation
+from transformations.transformations import transformation_factory, MetricExceptionBase, load_transformtions_from_file
+from transformations.base_transformation import load_transformation, dump_transformation
 
 from pprint import pprint
 import copy
