@@ -33,7 +33,6 @@ import ujson as json
 #import json as json_l
 from abc import ABC, abstractmethod
 from debug import get_lock
-from encoders.cisco_kv import CiscoKVFlatten, NXEncoder
 from exceptions import PmgrpcdException
 from transformations.transformations import metric_to_json_dict
 import logging
@@ -160,31 +159,31 @@ def FinalizeTelemetryData(dictTelemetryData):
 
 
 
-    if TRANSFORMATION and dictTelemetryData_beforeencoding and "dataGpbkv" in dictTelemetryData_beforeencoding.get("collector", {}).get("data", {}):
-        data = dictTelemetryData_beforeencoding["collector"]["data"].copy()
-        data["dataGpbkv"] = [{"fields": actual_data}]
-        # we just transform for kv
-        metric = CiscoKVFlatten.build_from_dcit(data)
-        internals = list(metric.get_internal())
+    #if TRANSFORMATION and dictTelemetryData_beforeencoding and "dataGpbkv" in dictTelemetryData_beforeencoding.get("collector", {}).get("data", {}):
+    #    data = dictTelemetryData_beforeencoding["collector"]["data"].copy()
+    #    data["dataGpbkv"] = [{"fields": actual_data}]
+    #    # we just transform for kv
+    #    metric = CiscoKVFlatten.build_from_dcit(data)
+    #    internals = list(metric.get_internal())
 
-        #breakpoint() if get_lock() else None
-        #if not ":" in path:
-        #    # we guess it is NX.
-        #    nx_metrics = list(NXEncoder.build_from_internal(x) for x in internals)
-        #    internals = []
-        #    for nx_metric in nx_metrics:
-        #        for internal in nx_metric.get_internal():
-        #            internals.append(internal)
+    #    #breakpoint() if get_lock() else None
+    #    #if not ":" in path:
+    #    #    # we guess it is NX.
+    #    #    nx_metrics = list(NXEncoder.build_from_internal(x) for x in internals)
+    #    #    internals = []
+    #    #    for nx_metric in nx_metrics:
+    #    #        for internal in nx_metric.get_internal():
+    #    #            internals.append(internal)
 
-        #breakpoint() if get_lock() else None
-        for internal in internals:
-            for new_metric in TRANSFORMATION.transform(internal):
-                print(new_metric.keys)
-                data = new_metric.data
-                data["dataGpbkv"] = new_metric.content
-                export_metrics(json.dumps({"collector": {"data":data}}))
-        #breakpoint() if get_lock() else None
-        return jsonTelemetryData
+    #    #breakpoint() if get_lock() else None
+    #    for internal in internals:
+    #        for new_metric in TRANSFORMATION.transform(internal):
+    #            print(new_metric.keys)
+    #            data = new_metric.data
+    #            data["dataGpbkv"] = new_metric.content
+    #            export_metrics(json.dumps({"collector": {"data":data}}))
+    #    #breakpoint() if get_lock() else None
+    #    return jsonTelemetryData
     #breakpoint() if get_lock() else None
 
 
