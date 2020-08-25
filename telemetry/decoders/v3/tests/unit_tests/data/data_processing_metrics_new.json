@@ -1,0 +1,3040 @@
+{
+  "tests": [
+    {
+      "name": "transformation_per_path_default",
+      "config": {
+        "transformation_config": {
+          "transformation": "TransformationPerEncodingPath",
+          "config": {
+            "default": {
+              "transformation": "FlattenHeaders",
+              "config": {}
+            },
+            "transformation_per_path": {
+              "path/her": {
+                "transformation": "RenameContent",
+                "config": {
+                  "path_info": {
+                    "path/here/a": "new_c"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "data": {
+        "node_id_str": "one_router",
+        "msg_timestamp": 234234234,
+        "encoding_path": "path/here/",
+        "keys": {
+          "key1": 2,
+          "key3": 1
+        },
+        "content": {
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id_str": "one_router",
+          "msg_timestamp": 234234234,
+          "encoding_path": "path/here/",
+          "keys": {
+            "key1": 2,
+            "key3": 1
+          },
+          "content": {
+            "node_id_str": "one_router",
+            "msg_timestamp": 234234234,
+            "key1": 2,
+            "key3": 1,
+            "a": {
+              "b": 1,
+              "a": "test",
+              "d": {
+                "p": {
+                  "oi": 0,
+                  "b": 8
+                },
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "t": [
+                    "p",
+                    1,
+                    3
+                  ]
+                },
+                {
+                  "d": [
+                    "p",
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "transformation_per_path_no_default",
+      "config": {
+        "transformation_config": {
+          "transformation": "TransformationPerEncodingPath",
+          "config": {
+            "default": {
+              "transformation": "FlattenHeaders",
+              "config": {}
+            },
+            "transformation_per_path": {
+              "path/here/": {
+                "transformation": "RenameContent",
+                "config": {
+                  "path_info": {
+                    "path/here/a": "new_c"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "data": {
+        "node_id_str": "one_router",
+        "msg_timestamp": 234234234,
+        "encoding_path": "path/here/",
+        "keys": {
+          "key1": [
+            1,
+            2
+          ],
+          "key3": 1
+        },
+        "content": {
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id_str": "one_router",
+          "msg_timestamp": 234234234,
+          "encoding_path": "path/here/",
+          "keys": {
+            "key1": [
+              1,
+              2
+            ],
+            "key3": 1
+          },
+          "content": {
+            "new_c": {
+              "b": 1,
+              "a": "test",
+              "d": {
+                "p": {
+                  "oi": 0,
+                  "b": 8
+                },
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "t": [
+                    "p",
+                    1,
+                    3
+                  ]
+                },
+                {
+                  "d": [
+                    "p",
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "processing_qos",
+      "config": {
+        "transformation_config": {
+          "transformation": "TransformationPipeline",
+          "config": {
+            "transformations": [
+              {
+                "transformation": "RenameKeys",
+                "config": {
+                  "path_info": {
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics": {
+                      "interface-name": {
+                        "1": "member-interface"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "transformation": "ExtraKeysTransformation",
+                "config": {
+                  "path_list": [
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name",
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/state"
+                  ]
+                }
+              },
+              {
+                "transformation": "FilterMetric",
+                "config": {
+                  "path_list": [
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics"
+                  ]
+                }
+              },
+              {
+                "transformation": "RenameContent",
+                "config": {
+                  "path_info": {
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array": "queue",
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred-stats-array": "wred"
+                  }
+                }
+              },
+              {
+                "transformation": "FlattenHierarchies",
+                "config": {
+                  "path_list": [
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/general-stats",
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue/queue-instance-length",
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred/red-label"
+                  ],
+                  "options": [
+                    "NO_OPTION"
+                  ]
+                }
+              },
+              {
+                "transformation": "FlattenHierarchies",
+                "config": {
+                  "path_list": [
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue",
+                    "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/wred"
+                  ],
+                  "options": [
+                    "NO_OPTION"
+                  ],
+                  "keep_naming": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+        "keys": {
+          "interface-name": [
+            "Bundle-Ether3",
+            "TenGigE0/2/0/3/0"
+          ],
+          "node-name": "0/RP0/CPU0",
+          "service-policy-name": "ntt-cos-out"
+        },
+        "content": {
+          "policy-name": "ntt-cos-out",
+          "satid": 0,
+          "state": "active",
+          "class-stats": [
+            {
+              "class-name": "class-default",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-bytes": 9433405,
+                "transmit-packets": 80529
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 9433405,
+                "conform-packets": 80529,
+                "queue-id": 524610,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "random-drop-bytes": 0,
+                "red-ecn-marked-packets": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            },
+            {
+              "class-name": "ntp-limit",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-packets": 0,
+                "total-drop-bytes": 0,
+                "transmit-bytes": 0,
+                "transmit-packets": 0
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 0,
+                "conform-packets": 0,
+                "conform-rate": 0,
+                "max-threshold-packets": 0,
+                "queue-drop-threshold": 0,
+                "queue-id": 524611,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "profile-title": "Default WRED Curve",
+                "random-drop-bytes": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "interface-name": "Bundle-Ether3",
+            "member-interface": "TenGigE0/2/0/3/0",
+            "node-name": "0/RP0/CPU0",
+            "state": "active",
+            "service-policy-name": "ntt-cos-out",
+            "class-name": "class-default"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "match-data-rate": 0,
+            "pre-policy-matched-bytes": 9433405,
+            "transmit-packets": 80529,
+            "queue-descr": "",
+            "queue_conform-bytes": 9433405,
+            "queue_conform-packets": 80529,
+            "queue_queue-id": 524610,
+            "queue_unit": "policy-param-unit-packets",
+            "queue_value": 0,
+            "queue_random-drop-bytes": 0,
+            "queue_tail-drop-packets": 0,
+            "wred_max-threshold-bytes": 0,
+            "wred_max-threshold-packets": 0,
+            "wred_random-drop-bytes": 0,
+            "wred_red-ecn-marked-packets": 0,
+            "wred_value": 0,
+            "wred_wred-type": "red-with-default-min-max",
+            "wred_red-transmit-bytes": 0,
+            "wred_red-transmit-packets": 0
+          }
+        },
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "interface-name": "Bundle-Ether3",
+            "member-interface": "TenGigE0/2/0/3/0",
+            "node-name": "0/RP0/CPU0",
+            "state": "active",
+            "service-policy-name": "ntt-cos-out",
+            "class-name": "ntp-limit"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "match-data-rate": 0,
+            "pre-policy-matched-packets": 0,
+            "total-drop-bytes": 0,
+            "transmit-bytes": 0,
+            "transmit-packets": 0,
+            "queue-descr": "",
+            "queue_conform-bytes": 0,
+            "queue_conform-packets": 0,
+            "queue_conform-rate": 0,
+            "queue_max-threshold-packets": 0,
+            "queue_queue-drop-threshold": 0,
+            "queue_queue-id": 524611,
+            "queue_unit": "policy-param-unit-packets",
+            "queue_value": 0,
+            "queue_random-drop-bytes": 0,
+            "queue_tail-drop-packets": 0,
+            "wred_max-threshold-bytes": 0,
+            "wred_max-threshold-packets": 0,
+            "wred_profile-title": "Default WRED Curve",
+            "wred_random-drop-bytes": 0,
+            "wred_value": 0,
+            "wred_wred-type": "red-with-default-min-max",
+            "wred_red-transmit-bytes": 0,
+            "wred_red-transmit-packets": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "pipeline_flattening_wrnings",
+      "config": {
+        "expected_warning": [
+          "Base name for flattening",
+          "Flattening lists"
+        ],
+        "transformation_config": {
+          "transformation": "TransformationPipeline",
+          "config": {
+            "transformations": [
+              {
+                "transformation": "FlattenHierarchies",
+                "config": {
+                  "options": [
+                    "HIERARCHIES"
+                  ],
+                  "keep_naming": true
+                }
+              },
+              {
+                "transformation": "FlattenHeaders",
+                "config": {}
+              }
+            ]
+          }
+        }
+      },
+      "data": {
+        "node_id_str": "one_router",
+        "msg_timestamp": 234234234,
+        "encoding_path": "path/here/",
+        "keys": {
+          "key1": 1,
+          "key2": 1,
+          "key3": 1
+        },
+        "content": {
+          "key1": 2,
+          "msg_timestamp": {
+            "0": "other_tst"
+          },
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              3,
+              4,
+              5
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id_str": "one_router",
+          "msg_timestamp": 234234234,
+          "encoding_path": "path/here/",
+          "keys": {
+            "key1": 1,
+            "key2": 1,
+            "key3": 1
+          },
+          "content": {
+            "key1_0": 2,
+            "node_id_str": "one_router",
+            "msg_timestamp": 234234234,
+            "msg_timestamp_0": "other_tst",
+            "key1": 1,
+            "key2": 1,
+            "key3": 1,
+            "a_a": "test",
+            "a_c": 1,
+            "a_d_p_oi": 0,
+            "a_d_p_b": 8,
+            "a_d_f_fo": 3,
+            "a_d_e": 1,
+            "a_d_ba": "c",
+            "a_g": "[3,4,5]",
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "flattening_headers_errors",
+      "config": {
+        "expected_warning": [
+          "Base name for flattening"
+        ],
+        "transformation_config": {
+          "transformation": "FlattenHeaders",
+          "config": {}
+        }
+      },
+      "data": {
+        "node_id_str": "one_router",
+        "msg_timestamp": 234234234,
+        "encoding_path": "path/here/",
+        "keys": {
+          "key1": 1,
+          "key2": 1,
+          "key3": 1
+        },
+        "content": {
+          "msg_timestamp": "other_tst",
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id_str": "one_router",
+          "msg_timestamp": 234234234,
+          "encoding_path": "path/here/",
+          "keys": {
+            "key1": 1,
+            "key2": 1,
+            "key3": 1
+          },
+          "content": {
+            "node_id_str": "one_router",
+            "msg_timestamp": 234234234,
+            "msg_timestamp_0": "other_tst",
+            "key1": 1,
+            "key2": 1,
+            "key3": 1,
+            "a": {
+              "b": 1,
+              "a": "test",
+              "d": {
+                "p": {
+                  "oi": 0,
+                  "b": 8
+                },
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "t": [
+                    "p",
+                    1,
+                    3
+                  ]
+                },
+                {
+                  "d": [
+                    "p",
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "flattening_headers_no_errors",
+      "config": {
+        "transformation_config": {
+          "transformation": "FlattenHeaders",
+          "config": {}
+        }
+      },
+      "data": {
+        "node_id_str": "one_router",
+        "msg_timestamp": 234234234,
+        "encoding_path": "path/here/",
+        "keys": {
+          "key1": 1,
+          "key2": 1,
+          "key3": 1
+        },
+        "content": {
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "node_id_str": "one_router",
+          "msg_timestamp": 234234234,
+          "encoding_path": "path/here/",
+          "keys": {
+            "key1": 1,
+            "key2": 1,
+            "key3": 1
+          },
+          "content": {
+            "node_id_str": "one_router",
+            "msg_timestamp": 234234234,
+            "key1": 1,
+            "key2": 1,
+            "key3": 1,
+            "a": {
+              "b": 1,
+              "a": "test",
+              "d": {
+                "p": {
+                  "oi": 0,
+                  "b": 8
+                },
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "t": [
+                    "p",
+                    1,
+                    3
+                  ]
+                },
+                {
+                  "d": [
+                    "p",
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "flattening_lists_names_warnings",
+      "config": {
+        "expected_warning": [
+          "Base name for flattening",
+          "Flattening lists"
+        ],
+        "transformation_config": {
+          "transformation": "FlattenHierarchies",
+          "config": {
+            "options": [
+              "HIERARCHIES"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "b": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0,
+                "b": 8
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "t": [
+                  "p",
+                  1,
+                  3
+                ]
+              },
+              {
+                "d": [
+                  "p",
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": "test",
+            "oi": 0,
+            "fo": 3,
+            "e": 1,
+            "ba": "c",
+            "g": "[{\"t\":\"[\\\"p\\\",1,3]\"},{\"d\":\"[\\\"p\\\",2,3]\"}]",
+            "b": "b",
+            "b_0": 1,
+            "b_0_0": 8
+          }
+        }
+      ]
+    },
+    {
+      "name": "selective_flattening_selective_paths",
+      "config": {
+        "expected_warning": [
+          "Ignoring flattening path"
+        ],
+        "transformation_config": {
+          "transformation": "FlattenHierarchies",
+          "config": {
+            "path_list": [
+              "path/here/a/d/p",
+              "path/here/a/c"
+            ],
+            "options": [
+              "NO_OPTION"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "p": {
+                  "o": 0
+                }
+              },
+              {
+                "p": {
+                  "o": 0
+                }
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "a": "test",
+              "d": {
+                "oi": 0,
+                "f": {
+                  "fo": 3
+                },
+                "e": 1,
+                "ba": "c"
+              },
+              "g": [
+                {
+                  "p": {
+                    "o": 0
+                  }
+                },
+                {
+                  "p": {
+                    "o": 0
+                  }
+                }
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "selective_flattening_no_lists",
+      "config": {
+        "transformation_config": {
+          "transformation": "FlattenHierarchies",
+          "config": {
+            "options": [
+              "FIELDS"
+            ],
+            "keep_naming": true
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": [
+              {
+                "p": {
+                  "o": 0
+                }
+              },
+              {
+                "p": {
+                  "o": 0
+                }
+              }
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a_a": "test",
+            "a_c": 1,
+            "a_d_p_oi": 0,
+            "a_d_f_fo": 3,
+            "a_d_e": 1,
+            "a_d_ba": "c",
+            "a_g": [
+              {
+                "p_o": 0
+              },
+              {
+                "p_o": 0
+              }
+            ],
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "simple_flattening_keepingnames",
+      "config": {
+        "transformation_config": {
+          "transformation": "FlattenHierarchies",
+          "config": {
+            "options": [
+              "HIERARCHIES"
+            ],
+            "keep_naming": true
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": "p"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a_a": "test",
+            "a_c": 1,
+            "a_d_p_oi": 0,
+            "a_d_f_fo": 3,
+            "a_d_e": 1,
+            "a_d_ba": "c",
+            "a_g": "p",
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "simple_flattening",
+      "config": {
+        "transformation_config": {
+          "transformation": "FlattenHierarchies",
+          "config": {
+            "options": [
+              "HIERARCHIES"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "a": "test",
+            "d": {
+              "p": {
+                "oi": 0
+              },
+              "f": {
+                "fo": 3
+              },
+              "e": 1,
+              "ba": "c"
+            },
+            "g": "p"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": "test",
+            "c": 1,
+            "oi": 0,
+            "fo": 3,
+            "e": 1,
+            "ba": "c",
+            "g": "p",
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "combine_strings_rename",
+      "config": {
+        "expected_warning": [
+          "Name already exists"
+        ],
+        "transformation_config": {
+          "transformation": "CombineContentTransformation",
+          "config": {
+            "transformations": [
+              {
+                "transformation": "FieldToString",
+                "config": {
+                  "path_list": [
+                    "path/here/a/g"
+                  ],
+                  "options": [
+                    "NO_OPTION"
+                  ]
+                }
+              },
+              {
+                "transformation": "RenameContent",
+                "config": {
+                  "path_info": {
+                    "path/here/a": "b",
+                    "path/here/a/c": "new_c"
+                  }
+                }
+              },
+              {
+                "transformation": "FieldToString",
+                "config": {
+                  "options": [
+                    "LISTS"
+                  ]
+                }
+              },
+              {
+                "transformation": "RenameContent",
+                "config": {
+                  "path_info": {
+                    "path/here/a/g": "new_g"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "new_c": 1,
+              "d": "[{\"e\":1,\"b\":\"c\",\"p\":{\"oi\":0},\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":9}]\"},{\"e\":2,\"b\":\"d\",\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":10}]\"}]",
+              "new_g": "[\"a\",\"b_8\",3]"
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rename_fields_warning",
+      "config": {
+        "expected_warning": [
+          "Name already exists"
+        ],
+        "transformation_config": {
+          "transformation": "RenameContent",
+          "config": {
+            "path_info": {
+              "path/here/a": "b",
+              "path/here/a/d/p": "new_p",
+              "path/here/a/d/f/a": "new_a",
+              "path/here/a/c": "new_c"
+            }
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "new_c": 1,
+              "d": [
+                {
+                  "new_p": {
+                    "oi": 0
+                  },
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": [
+                "a",
+                "b_8",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rename_fields_remove_fields",
+      "config": {
+        "transformation_config": {
+          "transformation": "RenameContent",
+          "config": {
+            "path_info": {
+              "path/here/a": "new_a",
+              "path/here/a/ignored": null,
+              "path/here/a/d/p": "new_p",
+              "path/here/a/d/f/a": "new_a",
+              "path/here/a/d/f/also_ignored": null,
+              "path/here/a/c": "new_c"
+            }
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "ignored": 0,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3,
+                    "also_ignored": "p"
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "new_a": {
+              "new_c": 1,
+              "d": [
+                {
+                  "new_p": {
+                    "oi": 0
+                  },
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": [
+                "a",
+                "b_8",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "filter_basic",
+      "config": {
+        "transformation_config": {
+          "transformation": "FilterMetric",
+          "config": {
+            "path_list": [
+              "path/here/"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "ignored": 0,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3,
+                    "also_ignored": "p"
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "rename_fields",
+      "config": {
+        "transformation_config": {
+          "transformation": "RenameContent",
+          "config": {
+            "path_info": {
+              "path/here/a": "new_a",
+              "path/here/a/d/p": "new_p",
+              "path/here/a/d/f/a": "new_a",
+              "path/here/a/c": "new_c"
+            }
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "new_a": {
+              "new_c": 1,
+              "d": [
+                {
+                  "new_p": {
+                    "oi": 0
+                  },
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "new_a": 3
+                    },
+                    {
+                      "new_a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": [
+                "a",
+                "b_8",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "all_lists_to_dict",
+      "config": {
+        "transformation_config": {
+          "transformation": "FieldToString",
+          "config": {
+            "path_list": [
+              "path/here/a/g",
+              "path/here/a/d/p"
+            ],
+            "options": [
+              "LISTS"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "b": "b",
+            "a": {
+              "c": 1,
+              "d": "[{\"e\":1,\"b\":\"c\",\"p\":\"{\\\"oi\\\":0}\",\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":9}]\"},{\"e\":2,\"b\":\"d\",\"f\":\"[{\\\"a\\\":3},{\\\"a\\\":10}]\"}]",
+              "g": "[\"a\",\"b_8\",3]"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "general_dict_list_to_text",
+      "config": {
+        "transformation_config": {
+          "transformation": "FieldToString",
+          "config": {
+            "path_list": [
+              "path/here/a/g",
+              "path/here/a/d/p"
+            ],
+            "options": [
+              "NO_OPTION"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "p": {
+                  "oi": 0
+                },
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b_8",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "d": [
+                {
+                  "f": [
+                    {
+                      "a": 3
+                    },
+                    {
+                      "a": 9
+                    }
+                  ],
+                  "e": 1,
+                  "b": "c",
+                  "p": "{\"oi\":0}"
+                },
+                {
+                  "e": 2,
+                  "b": "d",
+                  "f": [
+                    {
+                      "a": 3
+                    },
+                    {
+                      "a": 10
+                    }
+                  ]
+                }
+              ],
+              "g": "[\"a\",\"b_8\",3]"
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "split_extra_combination",
+      "config": {
+        "transformation_config": {
+          "transformation": "CombineTransformationSeries",
+          "config": {
+            "transformations": [
+              {
+                "transformation": "SplitLists",
+                "config": {
+                  "path_list": [
+                    "path/here/a/d"
+                  ]
+                }
+              },
+              {
+                "transformation": "ExtraKeysTransformation",
+                "config": {
+                  "path_list": [
+                    "path/here/a/d/f/a"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9,
+                    "b": 2
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 4,
+                    "b": 3
+                  },
+                  {
+                    "a": 10,
+                    "b": 4
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+            "a": 3
+          },
+          "content": {}
+        },
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+            "a": 9
+          },
+          "content": {
+            "b": 2
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+            "a": 4
+          },
+          "content": {
+            "b": 3
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a",
+            "a": 10
+          },
+          "content": {
+            "b": 4
+          }
+        },
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "g": [
+                "a",
+                "b",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 1,
+            "b": "c"
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 2,
+            "b": "d"
+          }
+        }
+      ]
+    },
+    {
+      "name": "splits_lists_hierarchies",
+      "config": {
+        "transformation_config": {
+          "transformation": "SplitLists",
+          "config": {
+            "path_list": [
+              "path/here/a/d",
+              "path/here/a/d/f"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 9
+                  }
+                ],
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": [
+                  {
+                    "a": 3
+                  },
+                  {
+                    "a": 10
+                  }
+                ]
+              }
+            ],
+            "g": [
+              "a",
+              "b",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 3
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 9
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 3
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d/f",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": 10
+          }
+        },
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "g": [
+                "a",
+                "b",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 1,
+            "b": "c"
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 2,
+            "b": "d"
+          }
+        }
+      ]
+    },
+    {
+      "name": "split_lists_sub_set",
+      "config": {
+        "transformation_config": {
+          "transformation": "SplitLists",
+          "config": {
+            "path_list": [
+              "path/here/a/d"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "key": "a"
+        },
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": "f"
+              }
+            ],
+            "g": [
+              "a",
+              "b",
+              3
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "g": [
+                "a",
+                "b",
+                3
+              ]
+            },
+            "b": "b"
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 1,
+            "b": "c"
+          }
+        },
+        {
+          "encoding_path": "path/here/a/d",
+          "keys": {
+            "key": "a"
+          },
+          "content": {
+            "e": 2,
+            "b": "d",
+            "f": "f"
+          }
+        }
+      ]
+    },
+    {
+      "name": "modify_keys_exceptions",
+      "config": {
+        "exception": "Key value is not a list",
+        "transformation_config": {
+          "transformation": "RenameKeys",
+          "config": {
+            "path_info": {
+              "other/path": {
+                "b": {
+                  "1": "newbalt"
+                },
+                "c": "newcalt"
+              },
+              "path/here/": {
+                "b": {
+                  "1": "newb",
+                  "8": "other"
+                },
+                "c": "newc"
+              }
+            }
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "c": 1,
+          "b": "b",
+          "e": 1
+        },
+        "content": {
+          "anything": 9
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "newc": 1,
+            "b": "b",
+            "newb": "c",
+            "e": 1
+          },
+          "content": {
+            "anything": 9
+          }
+        }
+      ]
+    },
+    {
+      "name": "modify_keys",
+      "config": {
+        "transformation_config": {
+          "transformation": "RenameKeys",
+          "config": {
+            "path_info": {
+              "other/path": {
+                "b": {
+                  "1": "newbalt"
+                },
+                "c": "newcalt"
+              },
+              "path/here/": {
+                "b": {
+                  "1": "newb",
+                  "8": "other"
+                },
+                "c": "newc"
+              }
+            }
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "path/here/",
+        "keys": {
+          "c": 1,
+          "b": [
+            "b",
+            "c"
+          ],
+          "e": 1
+        },
+        "content": {
+          "anything": 9
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "path/here/",
+          "keys": {
+            "newc": 1,
+            "b": "b",
+            "newb": "c",
+            "e": 1
+          },
+          "content": {
+            "anything": 9
+          }
+        }
+      ]
+    },
+    {
+      "name": "test_warning",
+      "config": {
+        "expected_warning": [
+          "Dummy warning"
+        ],
+        "transformation_config": {
+          "transformation": "MetricTransformDummy",
+          "config": {}
+        }
+      },
+      "data": {
+        "encoding_path": "",
+        "keys": {},
+        "content": {}
+      },
+      "expected": [
+        {
+          "encoding_path": "",
+          "keys": {},
+          "content": {}
+        }
+      ]
+    },
+    {
+      "name": "combination_of_extra_keys",
+      "config": {
+        "transformation_config": {
+          "transformation": "CombineTransformationSeries",
+          "config": {
+            "transformations": [
+              {
+                "transformation": "ExtraKeysTransformation",
+                "config": {
+                  "path_list": [
+                    "b",
+                    "a/c"
+                  ]
+                }
+              },
+              {
+                "transformation": "ExtraKeysTransformation",
+                "config": {
+                  "path_list": [
+                    "a/d/e",
+                    "a/d/b"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": "f"
+              }
+            ],
+            "g": "g"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "a",
+          "keys": {
+            "b": "b",
+            "c": 1
+          },
+          "content": {
+            "g": "g"
+          }
+        },
+        {
+          "encoding_path": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "c"
+            ],
+            "c": 1,
+            "e": 1
+          },
+          "content": {}
+        },
+        {
+          "encoding_path": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "d"
+            ],
+            "c": 1,
+            "e": 2
+          },
+          "content": {
+            "f": "f"
+          }
+        }
+      ]
+    },
+    {
+      "name": "extra_repeated_keys_multiple_keys",
+      "config": {
+        "transformation_config": {
+          "transformation": "ExtraKeysTransformation",
+          "config": {
+            "path_list": [
+              "b",
+              "a/c",
+              "a/d/e",
+              "a/d/b"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              {
+                "e": 1,
+                "b": "c"
+              },
+              {
+                "e": 2,
+                "b": "d",
+                "f": "f"
+              }
+            ],
+            "g": "g"
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "a",
+          "keys": {
+            "b": "b",
+            "c": 1
+          },
+          "content": {
+            "g": "g"
+          }
+        },
+        {
+          "encoding_path": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "c"
+            ],
+            "c": 1,
+            "e": 1
+          },
+          "content": {}
+        },
+        {
+          "encoding_path": "a/d",
+          "keys": {
+            "b": [
+              "b",
+              "d"
+            ],
+            "c": 1,
+            "e": 2
+          },
+          "content": {
+            "f": "f"
+          }
+        }
+      ]
+    },
+    {
+      "name": "no_operation_simple",
+      "config": {
+        "transformation_config": {
+          "transformation": "ExtraKeysTransformation",
+          "config": {
+            "path_list": [
+              "a/p"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              12,
+              4
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "",
+          "keys": {},
+          "content": {
+            "a": {
+              "c": 1,
+              "d": [
+                12,
+                4
+              ]
+            },
+            "b": "b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "extra_keys_simple",
+      "config": {
+        "transformation_config": {
+          "transformation": "ExtraKeysTransformation",
+          "config": {
+            "path_list": [
+              "b"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "",
+        "keys": {},
+        "content": {
+          "a": {
+            "c": 1,
+            "d": [
+              12,
+              4
+            ]
+          },
+          "b": "b"
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "",
+          "keys": {
+            "b": "b"
+          },
+          "content": {
+            "a": {
+              "c": 1,
+              "d": [
+                12,
+                4
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "extra_keys_qos_class-name",
+      "config": {
+        "transformation_config": {
+          "transformation": "ExtraKeysTransformation",
+          "config": {
+            "path_list": [
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+        "keys": {
+          "interface-name": [
+            "Bundle-Ether3",
+            "TenGigE0/2/0/3/0"
+          ],
+          "node-name": "0/RP0/CPU0",
+          "service-policy-name": "ntt-cos-out"
+        },
+        "content": {
+          "policy-name": "ntt-cos-out",
+          "satid": 0,
+          "state": "active",
+          "class-stats": [
+            {
+              "class-name": "class-default",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-bytes": 9433405,
+                "transmit-packets": 80529
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 9433405,
+                "conform-packets": 80529,
+                "queue-id": 524610,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "random-drop-bytes": 0,
+                "red-ecn-marked-packets": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            },
+            {
+              "class-name": "ntp-limit",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-packets": 0,
+                "total-drop-bytes": 0,
+                "transmit-bytes": 0,
+                "transmit-packets": 0
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 0,
+                "conform-packets": 0,
+                "conform-rate": 0,
+                "max-threshold-packets": 0,
+                "queue-drop-threshold": 0,
+                "queue-id": 524611,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "profile-title": "Default WRED Curve",
+                "random-drop-bytes": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+          "keys": {
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "policy-name": "ntt-cos-out",
+            "satid": 0,
+            "state": "active"
+          }
+        },
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "class-default",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-bytes": 9433405,
+              "transmit-packets": 80529
+            },
+            "queue-descr": "",
+            "queue-stats-array": {
+              "conform-bytes": 9433405,
+              "conform-packets": 80529,
+              "queue-id": 524610,
+              "queue-instance-length": {
+                "unit": "policy-param-unit-packets",
+                "value": 0
+              },
+              "random-drop-bytes": 0,
+              "tail-drop-packets": 0
+            },
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "random-drop-bytes": 0,
+              "red-ecn-marked-packets": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        },
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "ntp-limit",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-packets": 0,
+              "total-drop-bytes": 0,
+              "transmit-bytes": 0,
+              "transmit-packets": 0
+            },
+            "queue-descr": "",
+            "queue-stats-array": {
+              "conform-bytes": 0,
+              "conform-packets": 0,
+              "conform-rate": 0,
+              "max-threshold-packets": 0,
+              "queue-drop-threshold": 0,
+              "queue-id": 524611,
+              "queue-instance-length": {
+                "unit": "policy-param-unit-packets",
+                "value": 0
+              },
+              "random-drop-bytes": 0,
+              "tail-drop-packets": 0
+            },
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "profile-title": "Default WRED Curve",
+              "random-drop-bytes": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "extra_keys_qos_key_in_queue-stats-array",
+      "config": {
+        "transformation_config": {
+          "transformation": "ExtraKeysTransformation",
+          "config": {
+            "path_list": [
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/class-name",
+              "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array/queue-id"
+            ]
+          }
+        }
+      },
+      "data": {
+        "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+        "keys": {
+          "interface-name": [
+            "Bundle-Ether3",
+            "TenGigE0/2/0/3/0"
+          ],
+          "node-name": "0/RP0/CPU0",
+          "service-policy-name": "ntt-cos-out"
+        },
+        "content": {
+          "policy-name": "ntt-cos-out",
+          "satid": 0,
+          "state": "active",
+          "class-stats": [
+            {
+              "class-name": "class-default",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-bytes": 9433405,
+                "transmit-packets": 80529
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 9433405,
+                "conform-packets": 80529,
+                "queue-id": 524610,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "random-drop-bytes": 0,
+                "red-ecn-marked-packets": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            },
+            {
+              "class-name": "ntp-limit",
+              "cac-state": "unknown",
+              "counter-validity-bitmask": 4783898624,
+              "general-stats": {
+                "match-data-rate": 0,
+                "pre-policy-matched-packets": 0,
+                "total-drop-bytes": 0,
+                "transmit-bytes": 0,
+                "transmit-packets": 0
+              },
+              "queue-descr": "",
+              "queue-stats-array": {
+                "conform-bytes": 0,
+                "conform-packets": 0,
+                "conform-rate": 0,
+                "max-threshold-packets": 0,
+                "queue-drop-threshold": 0,
+                "queue-id": 524611,
+                "queue-instance-length": {
+                  "unit": "policy-param-unit-packets",
+                  "value": 0
+                },
+                "random-drop-bytes": 0,
+                "tail-drop-packets": 0
+              },
+              "wred-stats-array": {
+                "max-threshold-bytes": 0,
+                "max-threshold-packets": 0,
+                "profile-title": "Default WRED Curve",
+                "random-drop-bytes": 0,
+                "red-label": {
+                  "value": 0,
+                  "wred-type": "red-with-default-min-max"
+                },
+                "red-transmit-bytes": 0,
+                "red-transmit-packets": 0
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics",
+          "keys": {
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "policy-name": "ntt-cos-out",
+            "satid": 0,
+            "state": "active"
+          }
+        },
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "class-default",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-bytes": 9433405,
+              "transmit-packets": 80529
+            },
+            "queue-descr": "",
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "random-drop-bytes": 0,
+              "red-ecn-marked-packets": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        },
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array",
+          "keys": {
+            "class-name": "class-default",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "queue-id": 524610,
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "conform-bytes": 9433405,
+            "conform-packets": 80529,
+            "queue-instance-length": {
+              "unit": "policy-param-unit-packets",
+              "value": 0
+            },
+            "random-drop-bytes": 0,
+            "tail-drop-packets": 0
+          }
+        },
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats",
+          "keys": {
+            "class-name": "ntp-limit",
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "cac-state": "unknown",
+            "counter-validity-bitmask": 4783898624,
+            "general-stats": {
+              "match-data-rate": 0,
+              "pre-policy-matched-packets": 0,
+              "total-drop-bytes": 0,
+              "transmit-bytes": 0,
+              "transmit-packets": 0
+            },
+            "queue-descr": "",
+            "wred-stats-array": {
+              "max-threshold-bytes": 0,
+              "max-threshold-packets": 0,
+              "profile-title": "Default WRED Curve",
+              "random-drop-bytes": 0,
+              "red-label": {
+                "value": 0,
+                "wred-type": "red-with-default-min-max"
+              },
+              "red-transmit-bytes": 0,
+              "red-transmit-packets": 0
+            }
+          }
+        },
+        {
+          "encoding_path": "Cisco-IOS-XR-qos-ma-oper:qos/nodes/node/policy-map/interface-table/interface/member-interfaces/member-interface/output/service-policy-names/service-policy-instance/statistics/class-stats/queue-stats-array",
+          "keys": {
+            "class-name": "ntp-limit",
+            "queue-id": 524611,
+            "interface-name": [
+              "Bundle-Ether3",
+              "TenGigE0/2/0/3/0"
+            ],
+            "node-name": "0/RP0/CPU0",
+            "service-policy-name": "ntt-cos-out"
+          },
+          "content": {
+            "conform-bytes": 0,
+            "conform-packets": 0,
+            "conform-rate": 0,
+            "max-threshold-packets": 0,
+            "queue-drop-threshold": 0,
+            "queue-instance-length": {
+              "unit": "policy-param-unit-packets",
+              "value": 0
+            },
+            "random-drop-bytes": 0,
+            "tail-drop-packets": 0
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -5,42 +5,63 @@ import cisco_grpc_dialout_pb2 as cisco__grpc__dialout__pb2
 
 
 class gRPCMdtDialoutStub(object):
-  """gRPCMdtDialout defines service used for client-side streaming pushing MdtDialoutArgs.
-  """
-
-  def __init__(self, channel):
-    """Constructor.
-
-    Args:
-      channel: A grpc.Channel.
+    """gRPCMdtDialout defines service used for client-side streaming pushing MdtDialoutArgs.
     """
-    self.MdtDialout = channel.stream_stream(
-        '/mdt_dialout.gRPCMdtDialout/MdtDialout',
-        request_serializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.SerializeToString,
-        response_deserializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.FromString,
-        )
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.MdtDialout = channel.stream_stream(
+                '/mdt_dialout.gRPCMdtDialout/MdtDialout',
+                request_serializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.SerializeToString,
+                response_deserializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.FromString,
+                )
 
 
 class gRPCMdtDialoutServicer(object):
-  """gRPCMdtDialout defines service used for client-side streaming pushing MdtDialoutArgs.
-  """
+    """gRPCMdtDialout defines service used for client-side streaming pushing MdtDialoutArgs.
+    """
 
-  def MdtDialout(self, request_iterator, context):
-    # missing associated documentation comment in .proto file
-    pass
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
+    def MdtDialout(self, request_iterator, context):
+        """Missing associated documentation comment in .proto file"""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
 
 def add_gRPCMdtDialoutServicer_to_server(servicer, server):
-  rpc_method_handlers = {
-      'MdtDialout': grpc.stream_stream_rpc_method_handler(
-          servicer.MdtDialout,
-          request_deserializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.FromString,
-          response_serializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.SerializeToString,
-      ),
-  }
-  generic_handler = grpc.method_handlers_generic_handler(
-      'mdt_dialout.gRPCMdtDialout', rpc_method_handlers)
-  server.add_generic_rpc_handlers((generic_handler,))
+    rpc_method_handlers = {
+            'MdtDialout': grpc.stream_stream_rpc_method_handler(
+                    servicer.MdtDialout,
+                    request_deserializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.FromString,
+                    response_serializer=cisco__grpc__dialout__pb2.MdtDialoutArgs.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'mdt_dialout.gRPCMdtDialout', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+
+
+ # This class is part of an EXPERIMENTAL API.
+class gRPCMdtDialout(object):
+    """gRPCMdtDialout defines service used for client-side streaming pushing MdtDialoutArgs.
+    """
+
+    @staticmethod
+    def MdtDialout(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_stream(request_iterator, target, '/mdt_dialout.gRPCMdtDialout/MdtDialout',
+            cisco__grpc__dialout__pb2.MdtDialoutArgs.SerializeToString,
+            cisco__grpc__dialout__pb2.MdtDialoutArgs.FromString,
+            options, channel_credentials,
+            call_credentials, compression, wait_for_ready, timeout, metadata)

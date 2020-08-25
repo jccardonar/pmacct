@@ -14,7 +14,7 @@ The other way of encoding in the telemetry.proto is using the TelemetryField. Th
 """
 from enum import Enum
 from exceptions import PmgrpcdException
-from base_transformation import BaseConverter, SimpleConversion
+from transformations.base_transformation import BaseConverter, SimpleConversion
 from abc import abstractmethod
 
 import ujson as json

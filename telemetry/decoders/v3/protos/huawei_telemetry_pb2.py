@@ -17,10 +17,10 @@ _sym_db = _symbol_database.Default()
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='huawei-telemetry.proto',
-  package='telemetry',
+  package='huawei_telemetry',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x16huawei-telemetry.proto\x12\ttelemetry\"\x99\x02\n\tTelemetry\x12\x13\n\x0bnode_id_str\x18\x01 \x01(\t\x12\x1b\n\x13subscription_id_str\x18\x02 \x01(\t\x12\x13\n\x0bsensor_path\x18\x03 \x01(\t\x12\x15\n\rcollection_id\x18\x04 \x01(\x04\x12\x1d\n\x15\x63ollection_start_time\x18\x05 \x01(\x04\x12\x15\n\rmsg_timestamp\x18\x06 \x01(\x04\x12.\n\x08\x64\x61ta_gpb\x18\x07 \x01(\x0b\x32\x1c.telemetry.TelemetryGPBTable\x12\x1b\n\x13\x63ollection_end_time\x18\x08 \x01(\x04\x12\x16\n\x0e\x63urrent_period\x18\t \x01(\r\x12\x13\n\x0b\x65xcept_desc\x18\n \x01(\t\"<\n\x11TelemetryGPBTable\x12\'\n\x03row\x18\x01 \x03(\x0b\x32\x1a.telemetry.TelemetryRowGPB\"5\n\x0fTelemetryRowGPB\x12\x11\n\ttimestamp\x18\x01 \x01(\x04\x12\x0f\n\x07\x63ontent\x18\x0b \x01(\x0c\x62\x06proto3')
+  serialized_pb=_b('\n\x16huawei-telemetry.proto\x12\x10huawei_telemetry\"\xa0\x02\n\tTelemetry\x12\x13\n\x0bnode_id_str\x18\x01 \x01(\t\x12\x1b\n\x13subscription_id_str\x18\x02 \x01(\t\x12\x13\n\x0bsensor_path\x18\x03 \x01(\t\x12\x15\n\rcollection_id\x18\x04 \x01(\x04\x12\x1d\n\x15\x63ollection_start_time\x18\x05 \x01(\x04\x12\x15\n\rmsg_timestamp\x18\x06 \x01(\x04\x12\x35\n\x08\x64\x61ta_gpb\x18\x07 \x01(\x0b\x32#.huawei_telemetry.TelemetryGPBTable\x12\x1b\n\x13\x63ollection_end_time\x18\x08 \x01(\x04\x12\x16\n\x0e\x63urrent_period\x18\t \x01(\r\x12\x13\n\x0b\x65xcept_desc\x18\n \x01(\t\"C\n\x11TelemetryGPBTable\x12.\n\x03row\x18\x01 \x03(\x0b\x32!.huawei_telemetry.TelemetryRowGPB\"5\n\x0fTelemetryRowGPB\x12\x11\n\ttimestamp\x18\x01 \x01(\x04\x12\x0f\n\x07\x63ontent\x18\x0b \x01(\x0c\x62\x06proto3')
 )
 
 
@@ -28,76 +28,76 @@ DESCRIPTOR = _descriptor.FileDescriptor(
 
 _TELEMETRY = _descriptor.Descriptor(
   name='Telemetry',
-  full_name='telemetry.Telemetry',
+  full_name='huawei_telemetry.Telemetry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='node_id_str', full_name='telemetry.Telemetry.node_id_str', index=0,
+      name='node_id_str', full_name='huawei_telemetry.Telemetry.node_id_str', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='subscription_id_str', full_name='telemetry.Telemetry.subscription_id_str', index=1,
+      name='subscription_id_str', full_name='huawei_telemetry.Telemetry.subscription_id_str', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='sensor_path', full_name='telemetry.Telemetry.sensor_path', index=2,
+      name='sensor_path', full_name='huawei_telemetry.Telemetry.sensor_path', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='collection_id', full_name='telemetry.Telemetry.collection_id', index=3,
+      name='collection_id', full_name='huawei_telemetry.Telemetry.collection_id', index=3,
       number=4, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='collection_start_time', full_name='telemetry.Telemetry.collection_start_time', index=4,
+      name='collection_start_time', full_name='huawei_telemetry.Telemetry.collection_start_time', index=4,
       number=5, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='msg_timestamp', full_name='telemetry.Telemetry.msg_timestamp', index=5,
+      name='msg_timestamp', full_name='huawei_telemetry.Telemetry.msg_timestamp', index=5,
       number=6, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='data_gpb', full_name='telemetry.Telemetry.data_gpb', index=6,
+      name='data_gpb', full_name='huawei_telemetry.Telemetry.data_gpb', index=6,
       number=7, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='collection_end_time', full_name='telemetry.Telemetry.collection_end_time', index=7,
+      name='collection_end_time', full_name='huawei_telemetry.Telemetry.collection_end_time', index=7,
       number=8, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='current_period', full_name='telemetry.Telemetry.current_period', index=8,
+      name='current_period', full_name='huawei_telemetry.Telemetry.current_period', index=8,
       number=9, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='except_desc', full_name='telemetry.Telemetry.except_desc', index=9,
+      name='except_desc', full_name='huawei_telemetry.Telemetry.except_desc', index=9,
       number=10, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -115,20 +115,20 @@ _TELEMETRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=38,
-  serialized_end=319,
+  serialized_start=45,
+  serialized_end=333,
 )
 
 
 _TELEMETRYGPBTABLE = _descriptor.Descriptor(
   name='TelemetryGPBTable',
-  full_name='telemetry.TelemetryGPBTable',
+  full_name='huawei_telemetry.TelemetryGPBTable',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='row', full_name='telemetry.TelemetryGPBTable.row', index=0,
+      name='row', full_name='huawei_telemetry.TelemetryGPBTable.row', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -146,27 +146,27 @@ _TELEMETRYGPBTABLE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=321,
-  serialized_end=381,
+  serialized_start=335,
+  serialized_end=402,
 )
 
 
 _TELEMETRYROWGPB = _descriptor.Descriptor(
   name='TelemetryRowGPB',
-  full_name='telemetry.TelemetryRowGPB',
+  full_name='huawei_telemetry.TelemetryRowGPB',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='timestamp', full_name='telemetry.TelemetryRowGPB.timestamp', index=0,
+      name='timestamp', full_name='huawei_telemetry.TelemetryRowGPB.timestamp', index=0,
       number=1, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='content', full_name='telemetry.TelemetryRowGPB.content', index=1,
+      name='content', full_name='huawei_telemetry.TelemetryRowGPB.content', index=1,
       number=11, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
@@ -184,8 +184,8 @@ _TELEMETRYROWGPB = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=383,
-  serialized_end=436,
+  serialized_start=404,
+  serialized_end=457,
 )
 
 _TELEMETRY.fields_by_name['data_gpb'].message_type = _TELEMETRYGPBTABLE
@@ -198,21 +198,21 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 Telemetry = _reflection.GeneratedProtocolMessageType('Telemetry', (_message.Message,), {
   'DESCRIPTOR' : _TELEMETRY,
   '__module__' : 'huawei_telemetry_pb2'
-  # @@protoc_insertion_point(class_scope:telemetry.Telemetry)
+  # @@protoc_insertion_point(class_scope:huawei_telemetry.Telemetry)
   })
 _sym_db.RegisterMessage(Telemetry)
 
 TelemetryGPBTable = _reflection.GeneratedProtocolMessageType('TelemetryGPBTable', (_message.Message,), {
   'DESCRIPTOR' : _TELEMETRYGPBTABLE,
   '__module__' : 'huawei_telemetry_pb2'
-  # @@protoc_insertion_point(class_scope:telemetry.TelemetryGPBTable)
+  # @@protoc_insertion_point(class_scope:huawei_telemetry.TelemetryGPBTable)
   })
 _sym_db.RegisterMessage(TelemetryGPBTable)
 
 TelemetryRowGPB = _reflection.GeneratedProtocolMessageType('TelemetryRowGPB', (_message.Message,), {
   'DESCRIPTOR' : _TELEMETRYROWGPB,
   '__module__' : 'huawei_telemetry_pb2'
-  # @@protoc_insertion_point(class_scope:telemetry.TelemetryRowGPB)
+  # @@protoc_insertion_point(class_scope:huawei_telemetry.TelemetryRowGPB)
   })
 _sym_db.RegisterMessage(TelemetryRowGPB)
 

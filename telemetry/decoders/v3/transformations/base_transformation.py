@@ -10,10 +10,13 @@ from typing import (
     Generator,
     TypeVar,
     Any,
-    Sequence
+    Sequence,
+    Union,
 )
 from metric_types.base_types import SubTreeData
 
+ValueField = Dict[str, Union[str, float]]
+Field = Dict[str, Union["Field", ValueField]]
 
 class TransformationException(PmgrpcdException):
     def __init__(self, text, fields: Optional[Dict[str, str]] = None, *args, **kargs):
@@ -22,6 +25,15 @@ class TransformationException(PmgrpcdException):
         self.fields = fields
         super().__init__(text)
 
+
+
+class MetricExceptionBase(Exception):
+    def __init__(self, msg, params):
+        super().__init__(msg)
+        self.params = params
+
+    def str_with_params(self):
+        return f"{super().__str__()}, params{str(self.params)}"
 
 # from https://stackoverflow.com/questions/34073370/best-way-to-receive-the-return-value-from-a-python-generator
 class GeneratorReturnAfterFor:

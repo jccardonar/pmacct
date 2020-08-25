@@ -222,6 +222,13 @@ class DictSubTreeData(SubTreeData, DictProxy):
     def __init__(self, data: Dict[Any, Any]):
         self._data = data
 
+    def __eq__(self, other):
+        return other and self.__class__ == other.__class__ and self.data == other.data 
+
+    def __hash__(self):
+        # TODO: Not yet sure what to do here.
+        return super().__hash__() 
+
     @classmethod
     def from_json(cls, json_string):
         data = json.loads(json_string)

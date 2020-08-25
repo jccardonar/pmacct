@@ -18,7 +18,7 @@ from metric_types.cisco.cisco_metrics import (
     GrpcRawGPBToCiscoGrpcGPB,
     PivotingCiscoGPBKVDict,
 )
-from base_transformation import BaseConverter, SimpleConversion
+from transformations.base_transformation import BaseConverter, SimpleConversion
 
 
 class NxGrpcGPB(CiscoGrpcGPB):

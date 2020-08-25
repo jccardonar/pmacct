@@ -1,7 +1,12 @@
 from abc import abstractmethod
 from enum import Flag, auto
 from typing import Any, Dict, Optional, Sequence, Union, Iterable
-from cache_char_trie import get_trie, get_trie_from_sequence, get_trie_from_dict, CacheCharTrie
+from cache_char_trie import (
+    get_trie,
+    get_trie_from_sequence,
+    get_trie_from_dict,
+    CacheCharTrie,
+)
 
 import ujson as json
 
@@ -11,11 +16,15 @@ from .base_transformation import (
     TransformationException,
     load_transformation,
     dump_transformation,
+    MetricExceptionBase,
+    SubTreeData,
+    Field,
 )
-from encoders.base import Field, InternalMetric, MetricExceptionBase
+
 
 RANGE_NUMERS = [str(x) for x in range(0, 100)]
 HIERARCHICAL_TYPES = (dict, list)
+
 
 class OptionsFields(Flag):
     """
@@ -61,7 +70,7 @@ class GetValuesForContentMixin:
     def to_dict(self):
         output_dict = {}
         if self.data_per_path:
-            output_dict[self.PATHS_KEY] =  list(self.data_per_path)
+            output_dict[self.PATHS_KEY] = list(self.data_per_path)
         # Options requires special constructor, since it is a list and we store internally as an enum. Also, we have to store it as text.
         output_dict["options"] = self.options.to_list()
 
@@ -484,6 +493,7 @@ class ValueMapper(FieldTransformation):
     """
     Maps values. Good for transforming enums from ints to strings, strings to strings, or viceversa.
     """
+
     OTHERS_PARAMS = FieldTransformation.OTHERS_PARAMS
     OTHERS_PARAMS.append("mapper")
     OTHERS_PARAMS.append("default")
@@ -497,7 +507,6 @@ class ValueMapper(FieldTransformation):
         self.mapper = mapper
         self.default = default
         super().__init__(*args, **kargs)
-
 
 
 class ConvertToList(FieldTransformation):
@@ -653,10 +662,10 @@ class FlattenHeaders(
         new_fields = {}
         self.flatten_keys(metric.keys, metric.path, new_fields, warnings)
         self.add_to_field(
-            new_fields, metric.timestamp_key, metric.timestamp, metric.path, warnings
+            new_fields, metric.msg_timestamp_key, metric.msg_timestamp, metric.path, warnings
         )
         self.add_to_field(
-            new_fields, metric.node_key, metric.node, metric.path, warnings
+            new_fields, metric.node_key, metric.node_id, metric.path, warnings
         )
 
         # now the content
@@ -814,6 +823,24 @@ class RenameContent(GetTrieFromDictMixin, ContentTransformation):
 class RKEWrongType(MetricExceptionBase):
     pass
 
+# TODO
+# move this to a single part, it is duplicated with cisco_gpbvkv.py
+def add_to_flatten(flatten_content, key, value):
+    if key in flatten_content:
+        current_state = flatten_content[key]
+        if isinstance(current_state, list):
+            current_state.append(value)
+        else:
+            current_list = [current_state, value]
+            flatten_content[key] = current_list
+        return
+    flatten_content[key] = value
+
+def add_keys(current_keys, extra_keys):
+    new_keys = current_keys.copy()
+    for key, value in extra_keys.items():
+        add_to_flatten(new_keys, key, value)
+    return new_keys
 
 class RenameKeys(GetDictMixin, MetricTransformationBase):
     def transform(self, metric, warnings=None):
@@ -832,12 +859,12 @@ class RenameKeys(GetDictMixin, MetricTransformationBase):
         # we use as a base the info on the metric key.
         for key, value in metric.keys.items():
             if key not in path_data:
-                metric.add_to_flatten(current_keys, key, value)
+                add_to_flatten(current_keys, key, value)
                 continue
             new_key_info = path_data[key]
             if not isinstance(new_key_info, dict):
                 new_key = new_key_info
-                metric.add_to_flatten(current_keys, new_key, value)
+                add_to_flatten(current_keys, new_key, value)
                 continue
             # repeated values, value MUST be a list.
             if not isinstance(value, list):
@@ -849,11 +876,11 @@ class RenameKeys(GetDictMixin, MetricTransformationBase):
             for n, value in enumerate(key_values):
                 n = str(n)
                 if n not in new_key_info:
-                    metric.add_to_flatten(current_keys, key, value)
+                    add_to_flatten(current_keys, key, value)
                     continue
                 # we have a new name
                 new_key = new_key_info[n]
-                metric.add_to_flatten(current_keys, new_key, value)
+                add_to_flatten(current_keys, new_key, value)
         yield metric.replace(keys=current_keys)
 
 
@@ -890,7 +917,7 @@ class MetricSpliting(MetricTransformationBase):
     @abstractmethod
     def split(
         self, metric, fields, path, keys, key_state, warnings
-    ) -> Sequence[InternalMetric]:
+    ) -> Sequence[SubTreeData]:
         pass
 
     def _split(
@@ -980,7 +1007,7 @@ class ExtraKeysTransformation(GetTrieFromListMixin, MetricSpliting):
     def split(self, metric, fields, path, keys, key_state, warnings):
         new_keys = keys
         current_keys = metric.keys
-        new_keys = metric.add_keys(current_keys, new_keys)
+        new_keys = add_keys(current_keys, new_keys)
         current_content = fields
         for key in new_keys:
             current_content.pop(key, None)
@@ -1044,7 +1071,7 @@ class CombineTransformationSeries(GetSequenceOfTransformsMixin, MetricSpliting):
 
     def split(
         self, metric, fields, path, keys, key_state, warnings
-    ) -> Sequence[InternalMetric]:
+    ) -> Sequence[SubTreeData]:
         # here we apply only the first operation
         state_per_transform = {}
         for key, (n, state) in key_state.items():
